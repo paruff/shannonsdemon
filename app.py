@@ -15,10 +15,15 @@ def get_market_data(tickers, period="1y"):
     
     # Handle single vs multiple tickers
     if len(tickers) == 1:
+        if 'Close' not in data.columns:
+            raise ValueError(f"Close price data not available for {tickers[0]}")
         close_data = data['Close']
     else:
         # For multiple tickers, extract Close prices
-        close_data = pd.DataFrame({ticker: data[ticker]['Close'] for ticker in tickers})
+        close_data = pd.DataFrame({ticker: data[ticker]['Close'] for ticker in tickers if ticker in data.columns.get_level_values(0)})
+    
+    if close_data.empty:
+        raise ValueError("No valid price data could be retrieved")
     
     # Calculate daily returns
     returns = close_data.pct_change().dropna()
@@ -31,6 +36,10 @@ def calculate_risk_parity_weights(volatilities):
     Simple Risk Parity: Inverse Volatility Weighting.
     Weight_i = (1/Vol_i) / Sum(1/Vol_j)
     """
+    # Handle zero or near-zero volatility
+    min_vol = 0.001  # Minimum volatility threshold
+    volatilities = volatilities.clip(lower=min_vol)
+    
     inv_vol = 1 / volatilities
     weights = inv_vol / inv_vol.sum()
     return weights
@@ -72,14 +81,14 @@ def optimize_asset_location(total_portfolio_value, target_weights, accounts):
     }).sort_values(by='Inefficiency_Score', ascending=False) # Most inefficient first
     
     # Prepare Accounts (Sort by tax advantage priority)
-    # Priority: Roth (Best) > Trad/401k (Deferral) > Taxable (Worst)
-    account_priority = {'Roth': 1, 'Traditional/401k': 2, 'Taxable': 3}
-    
+    # Priority: Roth/HSA (Best) > Trad/401k (Deferral) > Taxable (Worst)
     sorted_accounts = []
     for acc_name, balance in accounts.items():
         priority = 3 # Default to taxable
-        if 'Roth' in acc_name or 'HSA' in acc_name: priority = 1
-        elif 'IRA' in acc_name or '401k' in acc_name: priority = 2
+        if 'Roth' in acc_name or 'HSA' in acc_name: 
+            priority = 1
+        elif 'IRA' in acc_name or '401k' in acc_name: 
+            priority = 2
         
         sorted_accounts.append({
             'Name': acc_name,
@@ -177,7 +186,7 @@ if st.button("Analyze & Generate Trades"):
             
             # 2. Asset Location Optimization
             st.subheader("2. Tax-Efficient Account Placement")
-            st.info(f"Distributing assets to prioritize putting Tax-Inefficient assets (High Vol/Yield) into Tax-Advantaged accounts.")
+            st.info(f"Distributing assets to prioritize putting Tax-Inefficient assets (e.g., Bonds, REITs) into Tax-Advantaged accounts.")
             
             accounts = {
                 'Taxable Account': taxable_bal,
@@ -209,13 +218,22 @@ if st.button("Analyze & Generate Trades"):
                     # Calculate shares
                     subset = subset.copy()
                     subset['Current_Price'] = subset['Asset'].map(prices)
-                    subset['Shares_To_Own'] = subset['Value'] / subset['Current_Price']
                     
-                    st.table(subset[['Asset', 'Value', 'Current_Price', 'Shares_To_Own']].style.format({
-                        'Value': '${:,.2f}',
-                        'Current_Price': '${:,.2f}',
-                        'Shares_To_Own': '{:,.2f}'
-                    }))
+                    # Validate prices before division
+                    if subset['Current_Price'].isna().any() or (subset['Current_Price'] <= 0).any():
+                        st.warning(f"Warning: Some assets in {account} have invalid prices. Shares calculation skipped.")
+                        st.table(subset[['Asset', 'Value', 'Current_Price']].style.format({
+                            'Value': '${:,.2f}',
+                            'Current_Price': '${:,.2f}'
+                        }))
+                    else:
+                        subset['Shares_To_Own'] = subset['Value'] / subset['Current_Price']
+                        
+                        st.table(subset[['Asset', 'Value', 'Current_Price', 'Shares_To_Own']].style.format({
+                            'Value': '${:,.2f}',
+                            'Current_Price': '${:,.2f}',
+                            'Shares_To_Own': '{:,.2f}'
+                        }))
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
