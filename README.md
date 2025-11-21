@@ -38,6 +38,8 @@ streamlit run app.py
 
 The app will open in your default web browser at `http://localhost:8501`.
 
+**Note**: The app requires internet access to fetch live market data from Yahoo Finance. If you're in a restricted network environment, you may see errors when clicking "Analyze & Generate Trades".
+
 ### Configuration
 
 1. **Portfolio Configuration** (Sidebar):

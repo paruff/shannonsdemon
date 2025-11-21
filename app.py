@@ -11,12 +11,20 @@ st.set_page_config(page_title="Risk Parity & Tax Location Optimizer", layout="wi
 
 def get_market_data(tickers, period="1y"):
     """Fetch historical data to calculate volatility."""
-    data = yf.download(tickers, period=period)['Close']
+    data = yf.download(tickers, period=period, group_by='ticker', auto_adjust=True)
+    
+    # Handle single vs multiple tickers
+    if len(tickers) == 1:
+        close_data = data['Close']
+    else:
+        # For multiple tickers, extract Close prices
+        close_data = pd.DataFrame({ticker: data[ticker]['Close'] for ticker in tickers})
+    
     # Calculate daily returns
-    returns = data.pct_change().dropna()
+    returns = close_data.pct_change().dropna()
     # Calculate annualized volatility
     volatility = returns.std() * np.sqrt(252)
-    return volatility, data.iloc[-1]
+    return volatility, close_data.iloc[-1]
 
 def calculate_risk_parity_weights(volatilities):
     """
