@@ -1,6 +1,17 @@
 import ErrorBoundary from './components/ErrorBoundary';
 import Tooltip from './components/Tooltip';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = e => setMatches(e.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, [query]);
+  return matches;
+}
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   TAX_INEFFICIENCY,
   ACCOUNT_TYPES,
@@ -116,6 +127,9 @@ export default function App() {
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const isMobile = useMediaQuery('(max-width: 767px)');
+  const lookbackRef = useRef(null);
   const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
   const [scenarioName, setScenarioName] = useState('');
   const [scenarios, setScenarios] = useState(() => {
@@ -488,8 +502,33 @@ export default function App() {
 
   return (
     <div style={S.app}>
+      <style>{`
+        .sd-table th:first-child, .sd-table td:first-child { position: sticky; left: 0; background: #0d1424; z-index: 1; }
+        @media (max-width: 767px) {
+          .sd-sidebar { position: fixed; top: 62px; bottom: 0; left: 0; z-index: 40; width: 260px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 0 0 20px rgba(0,0,0,.4); }
+          .sd-sidebar.open { transform: translateX(0); }
+          .sd-backdrop { position: fixed; inset: 62px 0 0 0; background: rgba(0,0,0,.5); z-index: 39; }
+        }
+        @media (min-width: 768px) { .sd-backdrop { display: none; } }
+      `}</style>
       {/* HEADER */}
       <header style={S.header}>
+        {isMobile && (
+          <button
+            aria-label="Toggle sidebar"
+            onClick={() => setMobileOpen(v => !v)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              fontSize: 20,
+              cursor: 'pointer',
+              padding: '2px 6px',
+            }}
+          >
+            ☰
+          </button>
+        )}
         <div style={S.logo}>⚖</div>
         <div>
           <h1 style={S.title}>
@@ -505,8 +544,11 @@ export default function App() {
       </header>
 
       <div style={S.body}>
+        {isMobile && mobileOpen && (
+          <div className="sd-backdrop" onClick={() => setMobileOpen(false)} />
+        )}
         {/* SIDEBAR */}
-        <aside style={S.sidebar}>
+        <aside className={`sd-sidebar${mobileOpen ? ' open' : ''}`} style={S.sidebar}>
           {/* Tickers */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Assets</div>
@@ -519,6 +561,12 @@ export default function App() {
               value={tickerInput}
               onChange={e => setTickerInput(e.target.value)}
               onBlur={applyTickerInput}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  applyTickerInput();
+                  lookbackRef.current?.focus();
+                }
+              }}
             />
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
               {tickers.map(t => {
@@ -565,6 +613,7 @@ export default function App() {
                   Volatility lookback
                 </label>
                 <select
+                  ref={lookbackRef}
                   id="lookback-select"
                   style={{ ...S.input, marginBottom: 10 }}
                   value={lookback}
@@ -955,7 +1004,7 @@ export default function App() {
                         </Tooltip>
                       </div>
                       <div style={S.tableWrap}>
-                        <table style={S.table}>
+                        <table className="sd-table" style={S.table}>
                           <thead>
                             <tr>
                               {[
@@ -1025,7 +1074,7 @@ export default function App() {
                         advisor.
                       </div>
                       <div style={S.tableWrap}>
-                        <table style={S.table}>
+                        <table className="sd-table" style={S.table}>
                           <thead>
                             <tr>
                               <th style={S.th}>Ticker</th>
@@ -1149,7 +1198,7 @@ export default function App() {
                     <div style={S.card}>
                       <div style={S.cardTitle}>Rebalancing Trades</div>
                       <div style={S.tableWrap}>
-                        <table style={S.table}>
+                        <table className="sd-table" style={S.table}>
                           <thead>
                             <tr>
                               {[
