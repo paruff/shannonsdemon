@@ -245,6 +245,170 @@ function generateTrades(currentHoldings, targetAllocation, prices, totalValue, t
   return trades.sort((a, b) => b.drift - a.drift);
 }
 
+// ─── CORRELATION ─────────────────────────────────────────────────────────────
+
+// Pearson correlation between two return series.
+function correlation(returnsA, returnsB) {
+  const n = Math.min(returnsA.length, returnsB.length);
+  if (n < 3) return 0;
+  const a = returnsA.slice(-n);
+  const b = returnsB.slice(-n);
+  const meanA = a.reduce((s, v) => s + v, 0) / n;
+  const meanB = b.reduce((s, v) => s + v, 0) / n;
+  let cov = 0,
+    varA = 0,
+    varB = 0;
+  for (let i = 0; i < n; i++) {
+    const da = a[i] - meanA;
+    const db = b[i] - meanB;
+    cov += da * db;
+    varA += da * da;
+    varB += db * db;
+  }
+  const denom = Math.sqrt(varA * varB);
+  return denom === 0 ? 0 : cov / denom;
+}
+
+// Convert closes array to daily log returns.
+function dailyReturns(closes) {
+  const r = [];
+  for (let i = 1; i < closes.length; i++) {
+    r.push(Math.log(closes[i] / closes[i - 1]));
+  }
+  return r;
+}
+
+// Pairwise correlation matrix from { ticker: closes[] }.
+function correlationMatrix(allCloses) {
+  const tickers = Object.keys(allCloses);
+  const returns = {};
+  for (const t of tickers) {
+    returns[t] = dailyReturns(allCloses[t]);
+  }
+  const matrix = {};
+  for (const a of tickers) {
+    matrix[a] = {};
+    for (const b of tickers) {
+      matrix[a][b] = a === b ? 1 : correlation(returns[a], returns[b]);
+    }
+  }
+  return matrix;
+}
+
+// ─── RISK CONTRIBUTION ──────────────────────────────────────────────────────
+
+// Risk contribution of each asset in a portfolio.
+// weights: { ticker: weight }, vols: { ticker: annualizedVol }, corrMatrix: correlationMatrix output
+// Returns: { ticker: riskContributionPct } (sums to ~1.0)
+function riskContribution(weights, vols, corrMatrix) {
+  const tickers = Object.keys(weights);
+  const n = tickers.length;
+  if (n === 0) return {};
+
+  // Build covariance matrix: Cov(i,j) = ρ(i,j) × σ(i) × σ(j)
+  const cov = [];
+  for (let i = 0; i < n; i++) {
+    cov[i] = [];
+    for (let j = 0; j < n; j++) {
+      const rho = corrMatrix[tickers[i]]?.[tickers[j]] ?? (i === j ? 1 : 0);
+      cov[i][j] = rho * (vols[tickers[i]] ?? 0) * (vols[tickers[j]] ?? 0);
+    }
+  }
+
+  // Marginal risk contribution: MRC_i = (Cov × w)_i / σ_p
+  // Risk contribution: RC_i = w_i × MRC_i
+  const rc = {};
+  let totalRC = 0;
+  for (let i = 0; i < n; i++) {
+    let mrc = 0;
+    for (let j = 0; j < n; j++) {
+      mrc += cov[i][j] * (weights[tickers[j]] ?? 0);
+    }
+    const contribution = (weights[tickers[i]] ?? 0) * mrc;
+    rc[tickers[i]] = contribution;
+    totalRC += contribution;
+  }
+
+  // Normalize to percentages
+  if (totalRC > 0) {
+    for (const t of tickers) {
+      rc[t] = rc[t] / totalRC;
+    }
+  }
+  return rc;
+}
+
+// ─── BACKTEST LITE ──────────────────────────────────────────────────────────
+
+// Simulate rebalanced vs buy-and-hold over a period.
+// allCloses: { ticker: closes[] }, weights: { ticker: weight }, threshold: rebalance trigger
+// Returns: { dates: [], rebalanced: [], buyAndHold: [] } (cumulative returns, starting at 1.0)
+function simulatePerformance(allCloses, weights, threshold = 0.05) {
+  const tickers = Object.keys(weights);
+  if (tickers.length === 0) return { dates: [], rebalanced: [], buyAndHold: [] };
+
+  const minLen = Math.min(...tickers.map(t => allCloses[t]?.length ?? 0));
+  if (minLen < 10) return { dates: [], rebalanced: [], buyAndHold: [] };
+
+  // Current weights (rebalanced) and buy-and-hold weights
+  const currentWeights = { ...weights };
+  const bhValues = {};
+  for (const t of tickers) {
+    bhValues[t] = weights[t] * (allCloses[t][0] ?? 1);
+  }
+
+  const rebalanced = [1];
+  const buyAndHold = [1];
+  const dates = Array.from({ length: minLen }, (_, i) => i);
+
+  // B&H: fixed dollar amounts per ticker from day 0
+  const bhDollars = {};
+  for (const t of tickers) {
+    bhDollars[t] = weights[t]; // normalized to 1 total
+  }
+
+  for (let d = 1; d < minLen; d++) {
+    // Rebalanced: compute return from weight drift then check rebalance
+    let rebalReturn = 0;
+    for (const t of tickers) {
+      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      rebalReturn += currentWeights[t] * dayReturn;
+    }
+    rebalanced.push(rebalanced[rebalanced.length - 1] * rebalReturn);
+
+    // Update current weights after price moves
+    for (const t of tickers) {
+      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      currentWeights[t] = (currentWeights[t] * dayReturn) / rebalReturn;
+    }
+
+    // Rebalance if drift exceeds threshold
+    let needsRebal = false;
+    for (const t of tickers) {
+      if (Math.abs(currentWeights[t] - weights[t]) > threshold) {
+        needsRebal = true;
+        break;
+      }
+    }
+    if (needsRebal) {
+      for (const t of tickers) {
+        currentWeights[t] = weights[t];
+      }
+    }
+
+    // Buy-and-hold: sum of fixed dollar amounts growing at individual rates
+    let bhTotal = 0;
+    for (const t of tickers) {
+      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      bhDollars[t] *= dayReturn;
+      bhTotal += bhDollars[t];
+    }
+    buyAndHold.push(buyAndHold[0] * bhTotal);
+  }
+
+  return { dates, rebalanced, buyAndHold };
+}
+
 const fmt = {
   pct: v => `${(v * 100).toFixed(1)}%`,
   usd: v =>
@@ -265,5 +429,10 @@ export {
   taxLocationWaterfall,
   generateTrades,
   closestTickers,
+  dailyReturns,
+  correlation,
+  correlationMatrix,
+  riskContribution,
+  simulatePerformance,
   fmt,
 };

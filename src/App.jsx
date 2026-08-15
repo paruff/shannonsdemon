@@ -22,6 +22,9 @@ import {
   taxLocationWaterfall,
   generateTrades,
   closestTickers,
+  correlationMatrix,
+  riskContribution,
+  simulatePerformance,
   fmt,
 } from './utils/finance';
 
@@ -166,6 +169,9 @@ export default function App() {
   const [targetWeights, setTargetWeights] = useState({});
   const [targetAllocation, setTargetAllocation] = useState({});
   const [trades, setTrades] = useState([]);
+  const [corrMatrix, setCorrMatrix] = useState({});
+  const [riskContrib, setRiskContrib] = useState({});
+  const [perfData, setPerfData] = useState({ dates: [], rebalanced: [], buyAndHold: [] });
 
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
@@ -262,9 +268,11 @@ export default function App() {
 
       const newPrices = {};
       const newVols = {};
+      const newCloses = {};
       for (const r of results) {
         newPrices[r.ticker] = r.latestPrice;
         newVols[r.ticker] = annualizedVol(r.closes);
+        newCloses[r.ticker] = r.closes;
       }
 
       const weights = inverseVolWeights(newVols);
@@ -277,11 +285,19 @@ export default function App() {
         threshold
       );
 
+      // Phase 3: correlation, risk contribution, performance simulation
+      const corr = correlationMatrix(newCloses);
+      const rc = riskContribution(weights, newVols, corr);
+      const perf = simulatePerformance(newCloses, weights, threshold);
+
       setPrices(newPrices);
       setVols(newVols);
       setTargetWeights(weights);
       setTargetAllocation(allocation);
       setTrades(newTrades);
+      setCorrMatrix(corr);
+      setRiskContrib(rc);
+      setPerfData(perf);
       setAnalysisState('done');
       setLastFetch(new Date().toISOString());
       setTab('analysis');
@@ -1272,6 +1288,324 @@ export default function App() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Risk Contribution */}
+                    {Object.keys(riskContrib).length > 0 && (
+                      <div style={S.card}>
+                        <div style={S.cardTitle}>
+                          <Tooltip tip="How much risk each asset contributes to total portfolio risk. Risk parity aims for equal contribution.">
+                            Risk Contribution
+                          </Tooltip>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                          Weight % vs risk contribution %. Equal risk contribution = true risk
+                          parity.
+                        </div>
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {tickers.map(t => {
+                            const w = targetWeights[t] ?? 0;
+                            const rc = riskContrib[t] ?? 0;
+                            const diff = rc - w;
+                            return (
+                              <div
+                                key={t}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  fontSize: 12,
+                                }}
+                              >
+                                <span
+                                  style={{ width: 44, fontFamily: 'monospace', color: '#94a3b8' }}
+                                >
+                                  {t}
+                                </span>
+                                <div style={{ flex: 1, position: 'relative', height: 16 }}>
+                                  {/* Weight bar */}
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: 0,
+                                      top: 2,
+                                      height: 12,
+                                      width: `${w * 100}%`,
+                                      background: '#3b82f633',
+                                      borderRadius: 2,
+                                      border: '1px dashed #3b82f6',
+                                      transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                                    }}
+                                  />
+                                  {/* Risk contribution bar */}
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: 0,
+                                      top: 2,
+                                      height: 12,
+                                      width: `${rc * 100}%`,
+                                      background: diff > 0.02 ? '#f59e0b88' : '#16a34a88',
+                                      borderRadius: 2,
+                                      opacity: 0.85,
+                                      transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                                    }}
+                                  />
+                                </div>
+                                <span style={{ width: 50, textAlign: 'right', color: '#94a3b8' }}>
+                                  {fmt.pct(w)}
+                                </span>
+                                <span
+                                  style={{
+                                    width: 50,
+                                    textAlign: 'right',
+                                    color: Math.abs(diff) > 0.02 ? '#f59e0b' : '#16a34a',
+                                  }}
+                                >
+                                  {fmt.pct(rc)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 12,
+                            marginTop: 10,
+                            fontSize: 10,
+                            color: '#94a3b8',
+                          }}
+                        >
+                          <span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 10,
+                                height: 10,
+                                background: '#3b82f633',
+                                border: '1px dashed #3b82f6',
+                                borderRadius: 2,
+                                marginRight: 4,
+                              }}
+                            />
+                            Weight
+                          </span>
+                          <span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 10,
+                                height: 10,
+                                background: '#16a34a88',
+                                borderRadius: 2,
+                                marginRight: 4,
+                              }}
+                            />
+                            Risk contribution
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Correlation Matrix */}
+                    {Object.keys(corrMatrix).length > 0 && (
+                      <div style={S.card}>
+                        <div style={S.cardTitle}>
+                          <Tooltip tip="Pairwise correlation of daily returns. Values near 1.0 mean assets move together (less diversification).">
+                            Correlation Matrix
+                          </Tooltip>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                          Lower correlation = better diversification. Ideal: uncorrelated assets.
+                        </div>
+                        <div style={S.tableWrap}>
+                          <table className="sd-table" style={S.table}>
+                            <thead>
+                              <tr>
+                                <th style={{ ...S.th, fontSize: 10 }}>Ticker</th>
+                                {tickers.map(t => (
+                                  <th key={t} style={{ ...S.th, fontFamily: 'monospace' }}>
+                                    {t}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tickers.map(a => (
+                                <tr key={a}>
+                                  <td style={{ ...S.td, fontFamily: 'monospace', fontWeight: 600 }}>
+                                    {a}
+                                  </td>
+                                  {tickers.map(b => {
+                                    const v = corrMatrix[a]?.[b] ?? 0;
+                                    const abs = Math.abs(v);
+                                    const bg =
+                                      a === b
+                                        ? '#1e293b'
+                                        : v > 0.5
+                                          ? `rgba(239,68,68,${abs * 0.4})`
+                                          : v > 0
+                                            ? `rgba(251,191,36,${abs * 0.3})`
+                                            : `rgba(34,197,94,${abs * 0.4})`;
+                                    return (
+                                      <td
+                                        key={b}
+                                        style={{
+                                          ...S.td,
+                                          textAlign: 'center',
+                                          fontFamily: 'monospace',
+                                          fontSize: 11,
+                                          background: bg,
+                                          color: a === b ? '#94a3b8' : '#e2e8f0',
+                                        }}
+                                      >
+                                        {a === b ? '—' : v.toFixed(2)}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Performance Chart */}
+                    {perfData.dates.length > 10 && (
+                      <div style={S.card}>
+                        <div style={S.cardTitle}>
+                          <Tooltip tip="Simulated cumulative return: rebalanced at your threshold vs buy-and-hold (no rebalancing).">
+                            Performance Simulation
+                          </Tooltip>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                          Rebalanced (blue) vs buy-and-hold (gray) over {perfData.dates.length}{' '}
+                          trading days.
+                        </div>
+                        <div
+                          style={{
+                            position: 'relative',
+                            height: 200,
+                            background: '#0a0f1e',
+                            borderRadius: 6,
+                            padding: '12px 8px 24px 40px',
+                          }}
+                        >
+                          <svg
+                            viewBox={`0 0 ${Math.max(perfData.dates.length - 1, 1)} 1`}
+                            preserveAspectRatio="none"
+                            style={{ width: '100%', height: '100%' }}
+                          >
+                            {/* Grid lines */}
+                            {[0, 0.25, 0.5, 0.75, 1].map(y => (
+                              <line
+                                key={y}
+                                x1={0}
+                                y1={y}
+                                x2={perfData.dates.length - 1}
+                                y2={y}
+                                stroke="#1e293b"
+                                strokeWidth={0.005}
+                              />
+                            ))}
+                            {/* Buy-and-hold line */}
+                            <polyline
+                              points={perfData.buyAndHold
+                                .map(
+                                  (v, i) =>
+                                    `${i},${1 - (v - Math.min(...perfData.buyAndHold, ...perfData.rebalanced)) / (Math.max(...perfData.buyAndHold, ...perfData.rebalanced) - Math.min(...perfData.buyAndHold, ...perfData.rebalanced) || 1)}`
+                                )
+                                .join(' ')}
+                              fill="none"
+                              stroke="#64748b"
+                              strokeWidth={0.008}
+                              vectorEffect="non-scaling-stroke"
+                            />
+                            {/* Rebalanced line */}
+                            <polyline
+                              points={perfData.rebalanced
+                                .map(
+                                  (v, i) =>
+                                    `${i},${1 - (v - Math.min(...perfData.buyAndHold, ...perfData.rebalanced)) / (Math.max(...perfData.buyAndHold, ...perfData.rebalanced) - Math.min(...perfData.buyAndHold, ...perfData.rebalanced) || 1)}`
+                                )
+                                .join(' ')}
+                              fill="none"
+                              stroke="#3b82f6"
+                              strokeWidth={0.008}
+                              vectorEffect="non-scaling-stroke"
+                            />
+                          </svg>
+                          {/* Y-axis labels */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: 4,
+                              top: 12,
+                              bottom: 24,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              fontSize: 9,
+                              color: '#94a3b8',
+                            }}
+                          >
+                            <span>
+                              {fmt.pct(
+                                Math.max(...perfData.rebalanced, ...perfData.buyAndHold) - 1
+                              )}
+                            </span>
+                            <span>+0%</span>
+                            <span>
+                              {fmt.pct(
+                                Math.min(...perfData.rebalanced, ...perfData.buyAndHold) - 1
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 16,
+                            marginTop: 8,
+                            fontSize: 10,
+                            color: '#94a3b8',
+                          }}
+                        >
+                          <span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 12,
+                                height: 2,
+                                background: '#3b82f6',
+                                marginRight: 4,
+                                verticalAlign: 'middle',
+                              }}
+                            />
+                            Rebalanced
+                          </span>
+                          <span>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 12,
+                                height: 2,
+                                background: '#94a3b8',
+                                marginRight: 4,
+                                verticalAlign: 'middle',
+                              }}
+                            />
+                            Buy &amp; hold
+                          </span>
+                          <span style={{ marginLeft: 'auto' }}>
+                            Return: rebalanced{' '}
+                            {fmt.pct(perfData.rebalanced[perfData.rebalanced.length - 1] - 1)} vs
+                            B&H {fmt.pct(perfData.buyAndHold[perfData.buyAndHold.length - 1] - 1)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
