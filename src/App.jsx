@@ -232,6 +232,53 @@ export default function App() {
     setTickers(parsed);
   };
 
+  const handlePaste = e => {
+    const rows = e.clipboardData
+      .getData('text')
+      .trim()
+      .split('\n')
+      .map(r => r.split(/[,\t]/));
+    rows.forEach(([acct, ticker, shares]) => {
+      if (
+        acct &&
+        ticker &&
+        ACCOUNT_TYPES.includes(acct.trim()) &&
+        tickers.includes(ticker.trim().toUpperCase())
+      ) {
+        updateHolding(acct.trim(), ticker.trim().toUpperCase(), parseFloat(shares) || 0);
+      }
+    });
+  };
+
+  const exportTradesCSV = () => {
+    const headers = ['Action', 'Ticker', 'Account', 'Shares', 'Amount', 'Drift'];
+    const rows = trades.map(t => [
+      t.action,
+      t.ticker,
+      t.account,
+      t.shares,
+      t.dollarAmount,
+      t.drift,
+    ]);
+    navigator.clipboard.writeText([headers, ...rows].map(r => r.join(',')).join('\n'));
+  };
+
+  const exportState = () => {
+    const state = {
+      tickers,
+      lookback,
+      threshold,
+      accounts,
+      currentHoldings,
+      prices,
+      vols,
+      targetWeights,
+      targetAllocation,
+      trades,
+    };
+    navigator.clipboard.writeText(JSON.stringify(state, null, 2));
+  };
+
   // ─── STYLES ───────────────────────────────────────────────────────────────
 
   const S = {
@@ -602,6 +649,15 @@ export default function App() {
                   position.
                 </div>
 
+                <div style={S.card}>
+                  <div style={{ ...S.cardTitle, marginBottom: 6 }}>Bulk paste</div>
+                  <textarea
+                    placeholder="Paste CSV: Account, Ticker, Shares — e.g. Taxable,SPY,100"
+                    style={{ ...S.input, height: 52, fontFamily: 'monospace', fontSize: 11 }}
+                    onPaste={handlePaste}
+                  />
+                </div>
+
                 {ACCOUNT_TYPES.map(acct => (
                   <div key={acct} style={S.card}>
                     <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
@@ -964,6 +1020,15 @@ export default function App() {
                       tax-efficient accounts.{' '}
                       <strong>Verify share counts and prices before executing.</strong> Consider tax
                       impact of sells in taxable accounts.
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                      <button style={S.btn} onClick={exportTradesCSV}>
+                        📋 Copy Trades as CSV
+                      </button>
+                      <button style={S.btn} onClick={exportState}>
+                        📦 Copy Full State JSON
+                      </button>
                     </div>
 
                     <div style={S.card}>
