@@ -1,6 +1,6 @@
 import ErrorBoundary from './components/ErrorBoundary';
 import Tooltip from './components/Tooltip';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   TAX_INEFFICIENCY,
   ACCOUNT_TYPES,
@@ -116,6 +116,7 @@ export default function App() {
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
 
   // ── Load persisted state
   useEffect(() => {
@@ -138,6 +139,29 @@ export default function App() {
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
   const canRun = tickers.length > 0 && totalValue > 0;
+
+  // ── Debounced ticker validation
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      const checks = tickers.map(async t => {
+        setTickerStatus(s => ({ ...s, [t]: 'pending' }));
+        try {
+          await fetchQuote(t, lookback);
+          setTickerStatus(s => ({ ...s, [t]: 'ok' }));
+        } catch {
+          setTickerStatus(s => ({ ...s, [t]: 'error' }));
+        }
+      });
+      await Promise.all(checks);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [tickers, lookback]);
+
+  // ── Trade preview without re-running analysis
+  const estimatedTrades = useMemo(
+    () => generateTrades(currentHoldings, targetAllocation, prices, totalValue, threshold),
+    [currentHoldings, targetAllocation, prices, totalValue, threshold]
+  );
 
   // ── Compute current weights from holdings
   const currentValueByTicker = {};
@@ -408,7 +432,22 @@ export default function App() {
               onBlur={applyTickerInput}
             />
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
-              {tickers.join(' · ')}
+              {tickers.map(t => {
+                const st = tickerStatus[t];
+                const badge =
+                  st === 'ok'
+                    ? { c: '#16a34a', s: '✓' }
+                    : st === 'error'
+                      ? { c: '#f87171', s: '✗' }
+                      : st === 'pending'
+                        ? { c: '#94a3b8', s: '⏳' }
+                        : null;
+                return (
+                  <span key={t} style={{ marginRight: 10 }}>
+                    <span style={{ color: badge?.c ?? '#94a3b8' }}>{badge?.s ?? '·'}</span> {t}
+                  </span>
+                );
+              })}
             </div>
           </div>
 
@@ -474,6 +513,13 @@ export default function App() {
                   <span>1% (active)</span>
                   <span>20% (lazy)</span>
                 </div>
+                {Object.keys(prices).length > 0 && (
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+                    {estimatedTrades.length > 0
+                      ? `~${estimatedTrades.length} trades if run now`
+                      : 'No trades needed at current drift'}
+                  </div>
+                )}
               </div>
             )}
           </div>
