@@ -1,4 +1,5 @@
 import ErrorBoundary from './components/ErrorBoundary';
+import Tooltip from './components/Tooltip';
 import { useState, useEffect, useCallback } from 'react';
 import {
   TAX_INEFFICIENCY,
@@ -378,7 +379,11 @@ export default function App() {
       <header style={S.header}>
         <div style={S.logo}>⚖</div>
         <div>
-          <h1 style={S.title}>Shannon's Demon</h1>
+          <h1 style={S.title}>
+            <Tooltip tip="Shannon's Demon: rebalance to harvest volatility variance, not chase returns">
+              Shannon's Demon
+            </Tooltip>
+          </h1>
           <div style={S.subtitle}>Risk parity rebalancer · tax-efficient · retirement</div>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8' }}>
@@ -443,7 +448,10 @@ export default function App() {
                 </select>
 
                 <label style={S.label} htmlFor="threshold-range">
-                  Rebalance threshold: {fmt.pct(threshold)}
+                  <Tooltip tip="Only trade when drift exceeds this % — captures volatility premium above costs">
+                    Rebalance threshold
+                  </Tooltip>
+                  : {fmt.pct(threshold)}
                 </label>
                 <input
                   id="threshold-range"
@@ -661,7 +669,15 @@ export default function App() {
                       ].map(m => (
                         <div key={m.label} style={S.card}>
                           <div style={S.metricVal}>{m.val}</div>
-                          <div style={S.metricLbl}>{m.label}</div>
+                          <div style={S.metricLbl}>
+                            {m.label === 'Rebalance Band' ? (
+                              <Tooltip tip="Only trade when drift exceeds this % — captures volatility premium above costs">
+                                {m.label}
+                              </Tooltip>
+                            ) : (
+                              m.label
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -716,7 +732,11 @@ export default function App() {
 
                     {/* Risk parity table */}
                     <div style={S.card}>
-                      <div style={S.cardTitle}>Risk Parity Weights (Inverse Volatility)</div>
+                      <div style={S.cardTitle}>
+                        <Tooltip tip="Inverse volatility: lower vol assets get higher weight so each contributes equal risk">
+                          Risk Parity Weights (Inverse Volatility)
+                        </Tooltip>
+                      </div>
                       <div style={S.tableWrap}>
                         <table style={S.table}>
                           <thead>
@@ -777,7 +797,11 @@ export default function App() {
 
                     {/* Tax location */}
                     <div style={S.card}>
-                      <div style={S.cardTitle}>Tax-Efficient Location (Target)</div>
+                      <div style={S.cardTitle}>
+                        <Tooltip tip="Bonds/REITs/commodities go in IRAs first to shelter ordinary income">
+                          Tax-Efficient Location (Target)
+                        </Tooltip>
+                      </div>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
                         Tax-inefficient assets (bonds, commodities, REITs) are placed in
                         tax-advantaged accounts first. Scores are heuristics — verify with a tax
