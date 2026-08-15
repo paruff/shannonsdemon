@@ -31,5 +31,11 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Enable GitHub Pages
+        run: |
+          gh api repos/{owner}/{repo}/pages -f build_type=legacy -f source='{"branch":"main","path":"/"}' 2>/dev/null || \
+          echo "::warning::GitHub Pages may not be enabled. Enable it at https://github.com/${{ github.repository }}/settings/pages"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - id: deployment
         uses: actions/deploy-pages@v4

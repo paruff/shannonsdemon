@@ -101,7 +101,13 @@ function WeightBar({ current, target, ticker }) {
 
 // ─── CONFETTI (dependency-free) ───────────────────────────────────────────────
 function Confetti() {
-  const pieces = Array.from({ length: 24 }, (_, i) => ({
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(false), 1800);
+    return () => clearTimeout(t);
+  }, []);
+  if (!visible) return null;
+  const pieces = Array.from({ length: 20 }, (_, i) => ({
     left: `${(i * 137) % 100}%`,
     delay: `${(i % 8) * 0.08}s`,
     color: ['#3b82f6', '#0891b2', '#16a34a', '#f59e0b', '#f87171'][i % 5],
