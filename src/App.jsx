@@ -1,3 +1,4 @@
+import ErrorBoundary from './components/ErrorBoundary';
 import { useState, useEffect, useCallback } from 'react';
 import {
   TAX_INEFFICIENCY,
@@ -514,440 +515,451 @@ export default function App() {
 
           {/* ── HOLDINGS TAB ── */}
           {tab === 'holdings' && (
-            <div>
-              <div style={S.warning}>
-                Enter your <strong>current share counts</strong> per account. These are compared
-                against risk parity targets to generate trades. Leave at 0 if you don't hold a
-                position.
-              </div>
-
-              {ACCOUNT_TYPES.map(acct => (
-                <div key={acct} style={S.card}>
-                  <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
-                    Balance: {fmt.usd(accounts[acct] ?? 0)}
-                  </div>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                      gap: 10,
-                    }}
-                  >
-                    {tickers.map(ticker => (
-                      <div key={ticker}>
-                        <label style={S.label} htmlFor={`holding-${acct}-${ticker}`}>
-                          {ticker} shares
-                        </label>
-                        <input
-                          id={`holding-${acct}-${ticker}`}
-                          type="number"
-                          min={0}
-                          step={0.0001}
-                          style={S.input}
-                          value={currentHoldings[acct]?.[ticker] ?? ''}
-                          placeholder="0"
-                          onChange={e => updateHolding(acct, ticker, e.target.value)}
-                        />
-                        {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
-                            ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+            <ErrorBoundary>
+              <div>
+                <div style={S.warning}>
+                  Enter your <strong>current share counts</strong> per account. These are compared
+                  against risk parity targets to generate trades. Leave at 0 if you don't hold a
+                  position.
                 </div>
-              ))}
 
-              {currentTotalFromPrices > 0 && (
-                <div style={S.card}>
-                  <div style={S.cardTitle}>Holdings Value (from last analysis prices)</div>
-                  <div style={S.grid2}>
-                    {Object.entries(currentValueByTicker).map(([t, v]) => (
-                      <div
-                        key={t}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '4px 0',
-                          borderBottom: '1px solid #0f172a',
-                        }}
-                      >
-                        <span style={{ color: '#94a3b8' }}>{t}</span>
-                        <span>{fmt.usd(v)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
-                    Total tracked:{' '}
-                    <strong style={{ color: '#e2e8f0' }}>{fmt.usd(currentTotalFromPrices)}</strong>{' '}
-                    vs account total:{' '}
-                    <strong style={{ color: '#e2e8f0' }}>{fmt.usd(totalValue)}</strong>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── ANALYSIS TAB ── */}
-          {tab === 'analysis' && (
-            <div>
-              {analysisState === 'idle' && (
-                <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
-                  Enter your holdings and click{' '}
-                  <strong style={{ color: '#94a3b8' }}>Run Analysis</strong> to see risk parity
-                  targets.
-                </div>
-              )}
-
-              {analysisState === 'error' && (
-                <div style={S.error}>
-                  <strong>Error fetching market data:</strong> {errorMsg}
-                  <div style={{ marginTop: 6, color: '#f87171' }}>
-                    The Yahoo Finance unofficial API may be rate-limiting or blocking requests. Try
-                    again in a minute, or check your ticker symbols.
-                  </div>
-                </div>
-              )}
-
-              {analysisState === 'done' && (
-                <>
-                  {/* Summary metrics */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
-                      gap: 12,
-                      marginBottom: 18,
-                    }}
-                  >
-                    {[
-                      { label: 'Assets', val: tickers.length },
-                      { label: 'Total Value', val: fmt.usd(totalValue) },
-                      { label: 'Rebalance Band', val: fmt.pct(threshold) },
-                      { label: 'Trades Needed', val: trades.length },
-                    ].map(m => (
-                      <div key={m.label} style={S.card}>
-                        <div style={S.metricVal}>{m.val}</div>
-                        <div style={S.metricLbl}>{m.label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Weight comparison chart */}
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Current vs Target Weights</div>
+                {ACCOUNT_TYPES.map(acct => (
+                  <div key={acct} style={S.card}>
+                    <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
                     <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
-                      <span
-                        style={{
-                          background: '#16a34a',
-                          display: 'inline-block',
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          marginRight: 4,
-                        }}
-                      />
-                      under target
-                      <span
-                        style={{
-                          background: '#dc2626',
-                          display: 'inline-block',
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          margin: '0 4px 0 12px',
-                        }}
-                      />
-                      over target
-                      <span
-                        style={{
-                          border: '1px dashed #3b82f6',
-                          display: 'inline-block',
-                          width: 10,
-                          height: 10,
-                          borderRadius: 2,
-                          margin: '0 4px 0 12px',
-                        }}
-                      />
-                      target
+                      Balance: {fmt.usd(accounts[acct] ?? 0)}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {tickers.map(t => {
-                        const curW =
-                          totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
-                        const tgtW = targetWeights[t] ?? 0;
-                        return <WeightBar key={t} ticker={t} current={curW} target={tgtW} />;
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Risk parity table */}
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Risk Parity Weights (Inverse Volatility)</div>
-                    <div style={S.tableWrap}>
-                      <table style={S.table}>
-                        <thead>
-                          <tr>
-                            {[
-                              'Ticker',
-                              'Ann. Vol',
-                              'Target Weight',
-                              'Target $',
-                              'Current $',
-                              'Drift',
-                            ].map(h => (
-                              <th key={h} style={S.th}>
-                                {h}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tickers.map(t => {
-                            const tgtW = targetWeights[t] ?? 0;
-                            const curW =
-                              totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
-                            const drift = curW - tgtW;
-                            return (
-                              <tr key={t}>
-                                <td
-                                  style={{
-                                    ...S.td,
-                                    fontWeight: 600,
-                                    color: '#e2e8f0',
-                                    fontFamily: 'monospace',
-                                  }}
-                                >
-                                  {t}
-                                </td>
-                                <td style={S.td}>{fmt.vol(vols[t] ?? 0)}</td>
-                                <td style={S.td}>{fmt.pct(tgtW)}</td>
-                                <td style={S.td}>{fmt.usd(tgtW * totalValue)}</td>
-                                <td style={S.td}>{fmt.usd(currentValueByTicker[t] ?? 0)}</td>
-                                <td
-                                  style={{
-                                    ...S.td,
-                                    color: Math.abs(drift) > threshold ? '#f87171' : '#94a3b8',
-                                  }}
-                                >
-                                  {drift >= 0 ? '+' : ''}
-                                  {fmt.pct(drift)}
-                                  {Math.abs(drift) > threshold && ' ⚠'}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Tax location */}
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Tax-Efficient Location (Target)</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
-                      Tax-inefficient assets (bonds, commodities, REITs) are placed in
-                      tax-advantaged accounts first. Scores are heuristics — verify with a tax
-                      advisor.
-                    </div>
-                    <div style={S.tableWrap}>
-                      <table style={S.table}>
-                        <thead>
-                          <tr>
-                            <th style={S.th}>Ticker</th>
-                            <th style={S.th}>Tax Score</th>
-                            {ACCOUNT_TYPES.map(a => (
-                              <th key={a} style={S.th}>
-                                {a}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {tickers.map(t => (
-                            <tr key={t}>
-                              <td
-                                style={{
-                                  ...S.td,
-                                  fontFamily: 'monospace',
-                                  fontWeight: 600,
-                                  color: '#e2e8f0',
-                                }}
-                              >
-                                {t}
-                              </td>
-                              <td style={S.td}>
-                                <span
-                                  style={S.pill(
-                                    (TAX_INEFFICIENCY[t] ?? 5) >= 8
-                                      ? 'sell'
-                                      : (TAX_INEFFICIENCY[t] ?? 5) >= 5
-                                        ? null
-                                        : 'buy'
-                                  )}
-                                >
-                                  {TAX_INEFFICIENCY[t] ?? '5 (est.)'}
-                                </span>
-                              </td>
-                              {ACCOUNT_TYPES.map(a => (
-                                <td key={a} style={S.td}>
-                                  {targetAllocation[a]?.[t] > 0 ? (
-                                    fmt.usd(targetAllocation[a][t])
-                                  ) : (
-                                    <span style={{ color: '#1e293b' }}>—</span>
-                                  )}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* Prices */}
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Last Prices (Yahoo Finance)</div>
-                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                      {tickers.map(t => (
-                        <div key={t} style={{ minWidth: 80 }}>
-                          <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#94a3b8' }}>
-                            {t}
-                          </div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
-                            {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
-                          </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                        gap: 10,
+                      }}
+                    >
+                      {tickers.map(ticker => (
+                        <div key={ticker}>
+                          <label style={S.label} htmlFor={`holding-${acct}-${ticker}`}>
+                            {ticker} shares
+                          </label>
+                          <input
+                            id={`holding-${acct}-${ticker}`}
+                            type="number"
+                            min={0}
+                            step={0.0001}
+                            style={S.input}
+                            value={currentHoldings[acct]?.[ticker] ?? ''}
+                            placeholder="0"
+                            onChange={e => updateHolding(acct, ticker, e.target.value)}
+                          />
+                          {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                              ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
-                </>
-              )}
-            </div>
+                ))}
+
+                {currentTotalFromPrices > 0 && (
+                  <div style={S.card}>
+                    <div style={S.cardTitle}>Holdings Value (from last analysis prices)</div>
+                    <div style={S.grid2}>
+                      {Object.entries(currentValueByTicker).map(([t, v]) => (
+                        <div
+                          key={t}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            padding: '4px 0',
+                            borderBottom: '1px solid #0f172a',
+                          }}
+                        >
+                          <span style={{ color: '#94a3b8' }}>{t}</span>
+                          <span>{fmt.usd(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
+                      Total tracked:{' '}
+                      <strong style={{ color: '#e2e8f0' }}>
+                        {fmt.usd(currentTotalFromPrices)}
+                      </strong>{' '}
+                      vs account total:{' '}
+                      <strong style={{ color: '#e2e8f0' }}>{fmt.usd(totalValue)}</strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ── ANALYSIS TAB ── */}
+          {tab === 'analysis' && (
+            <ErrorBoundary>
+              <div>
+                {analysisState === 'idle' && (
+                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                    Enter your holdings and click{' '}
+                    <strong style={{ color: '#94a3b8' }}>Run Analysis</strong> to see risk parity
+                    targets.
+                  </div>
+                )}
+
+                {analysisState === 'error' && (
+                  <div style={S.error}>
+                    <strong>Error fetching market data:</strong> {errorMsg}
+                    <div style={{ marginTop: 6, color: '#f87171' }}>
+                      The Yahoo Finance unofficial API may be rate-limiting or blocking requests.
+                      Try again in a minute, or check your ticker symbols.
+                    </div>
+                  </div>
+                )}
+
+                {analysisState === 'done' && (
+                  <>
+                    {/* Summary metrics */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gap: 12,
+                        marginBottom: 18,
+                      }}
+                    >
+                      {[
+                        { label: 'Assets', val: tickers.length },
+                        { label: 'Total Value', val: fmt.usd(totalValue) },
+                        { label: 'Rebalance Band', val: fmt.pct(threshold) },
+                        { label: 'Trades Needed', val: trades.length },
+                      ].map(m => (
+                        <div key={m.label} style={S.card}>
+                          <div style={S.metricVal}>{m.val}</div>
+                          <div style={S.metricLbl}>{m.label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Weight comparison chart */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Current vs Target Weights</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                        <span
+                          style={{
+                            background: '#16a34a',
+                            display: 'inline-block',
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            marginRight: 4,
+                          }}
+                        />
+                        under target
+                        <span
+                          style={{
+                            background: '#dc2626',
+                            display: 'inline-block',
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            margin: '0 4px 0 12px',
+                          }}
+                        />
+                        over target
+                        <span
+                          style={{
+                            border: '1px dashed #3b82f6',
+                            display: 'inline-block',
+                            width: 10,
+                            height: 10,
+                            borderRadius: 2,
+                            margin: '0 4px 0 12px',
+                          }}
+                        />
+                        target
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {tickers.map(t => {
+                          const curW =
+                            totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                          const tgtW = targetWeights[t] ?? 0;
+                          return <WeightBar key={t} ticker={t} current={curW} target={tgtW} />;
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Risk parity table */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Risk Parity Weights (Inverse Volatility)</div>
+                      <div style={S.tableWrap}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              {[
+                                'Ticker',
+                                'Ann. Vol',
+                                'Target Weight',
+                                'Target $',
+                                'Current $',
+                                'Drift',
+                              ].map(h => (
+                                <th key={h} style={S.th}>
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tickers.map(t => {
+                              const tgtW = targetWeights[t] ?? 0;
+                              const curW =
+                                totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                              const drift = curW - tgtW;
+                              return (
+                                <tr key={t}>
+                                  <td
+                                    style={{
+                                      ...S.td,
+                                      fontWeight: 600,
+                                      color: '#e2e8f0',
+                                      fontFamily: 'monospace',
+                                    }}
+                                  >
+                                    {t}
+                                  </td>
+                                  <td style={S.td}>{fmt.vol(vols[t] ?? 0)}</td>
+                                  <td style={S.td}>{fmt.pct(tgtW)}</td>
+                                  <td style={S.td}>{fmt.usd(tgtW * totalValue)}</td>
+                                  <td style={S.td}>{fmt.usd(currentValueByTicker[t] ?? 0)}</td>
+                                  <td
+                                    style={{
+                                      ...S.td,
+                                      color: Math.abs(drift) > threshold ? '#f87171' : '#94a3b8',
+                                    }}
+                                  >
+                                    {drift >= 0 ? '+' : ''}
+                                    {fmt.pct(drift)}
+                                    {Math.abs(drift) > threshold && ' ⚠'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Tax location */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Tax-Efficient Location (Target)</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                        Tax-inefficient assets (bonds, commodities, REITs) are placed in
+                        tax-advantaged accounts first. Scores are heuristics — verify with a tax
+                        advisor.
+                      </div>
+                      <div style={S.tableWrap}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              <th style={S.th}>Ticker</th>
+                              <th style={S.th}>Tax Score</th>
+                              {ACCOUNT_TYPES.map(a => (
+                                <th key={a} style={S.th}>
+                                  {a}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {tickers.map(t => (
+                              <tr key={t}>
+                                <td
+                                  style={{
+                                    ...S.td,
+                                    fontFamily: 'monospace',
+                                    fontWeight: 600,
+                                    color: '#e2e8f0',
+                                  }}
+                                >
+                                  {t}
+                                </td>
+                                <td style={S.td}>
+                                  <span
+                                    style={S.pill(
+                                      (TAX_INEFFICIENCY[t] ?? 5) >= 8
+                                        ? 'sell'
+                                        : (TAX_INEFFICIENCY[t] ?? 5) >= 5
+                                          ? null
+                                          : 'buy'
+                                    )}
+                                  >
+                                    {TAX_INEFFICIENCY[t] ?? '5 (est.)'}
+                                  </span>
+                                </td>
+                                {ACCOUNT_TYPES.map(a => (
+                                  <td key={a} style={S.td}>
+                                    {targetAllocation[a]?.[t] > 0 ? (
+                                      fmt.usd(targetAllocation[a][t])
+                                    ) : (
+                                      <span style={{ color: '#1e293b' }}>—</span>
+                                    )}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Prices */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Last Prices (Yahoo Finance)</div>
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                        {tickers.map(t => (
+                          <div key={t} style={{ minWidth: 80 }}>
+                            <div
+                              style={{ fontFamily: 'monospace', fontSize: 12, color: '#94a3b8' }}
+                            >
+                              {t}
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
+                              {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </ErrorBoundary>
           )}
 
           {/* ── TRADES TAB ── */}
           {tab === 'trades' && (
-            <div>
-              {analysisState !== 'done' && (
-                <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
-                  Run Analysis first to generate trades.
-                </div>
-              )}
-
-              {analysisState === 'done' && trades.length === 0 && (
-                <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
-                  <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                  <div style={{ color: '#94a3b8', fontSize: 14 }}>
-                    All positions are within the{' '}
-                    <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
-                    band. No trades needed.
+            <ErrorBoundary>
+              <div>
+                {analysisState !== 'done' && (
+                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                    Run Analysis first to generate trades.
                   </div>
-                  <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
-                    Shannon's Demon: Only rebalance when drift captures a meaningful volatility
-                    premium above transaction costs.
-                  </div>
-                </div>
-              )}
+                )}
 
-              {analysisState === 'done' && trades.length > 0 && (
-                <>
-                  <div style={S.warning}>
-                    These trades move your portfolio toward risk parity targets within tax-efficient
-                    accounts. <strong>Verify share counts and prices before executing.</strong>{' '}
-                    Consider tax impact of sells in taxable accounts.
-                  </div>
-
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Rebalancing Trades</div>
-                    <div style={S.tableWrap}>
-                      <table style={S.table}>
-                        <thead>
-                          <tr>
-                            {[
-                              'Action',
-                              'Ticker',
-                              'Account',
-                              'Shares',
-                              'Amount',
-                              'Current %',
-                              'Target %',
-                              'Drift',
-                            ].map(h => (
-                              <th key={h} style={S.th}>
-                                {h}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {trades.map((tr, i) => (
-                            <tr key={i}>
-                              <td style={S.td}>
-                                <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>
-                              </td>
-                              <td
-                                style={{
-                                  ...S.td,
-                                  fontFamily: 'monospace',
-                                  fontWeight: 600,
-                                  color: '#e2e8f0',
-                                }}
-                              >
-                                {tr.ticker}
-                              </td>
-                              <td style={{ ...S.td, color: '#94a3b8' }}>{tr.account}</td>
-                              <td style={S.td}>{fmt.shares(tr.shares)}</td>
-                              <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
-                              <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
-                              <td style={{ ...S.td, color: '#3b82f6' }}>
-                                {fmt.pct(tr.targetWeight)}
-                              </td>
-                              <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                {analysisState === 'done' && trades.length === 0 && (
+                  <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
+                    <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
+                    <div style={{ color: '#94a3b8', fontSize: 14 }}>
+                      All positions are within the{' '}
+                      <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
+                      band. No trades needed.
+                    </div>
+                    <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
+                      Shannon's Demon: Only rebalance when drift captures a meaningful volatility
+                      premium above transaction costs.
                     </div>
                   </div>
+                )}
 
-                  {/* Per-account summary */}
-                  <div style={S.grid2}>
-                    {ACCOUNT_TYPES.map(acct => {
-                      const acctTrades = trades.filter(t => t.account === acct);
-                      if (acctTrades.length === 0) return null;
-                      return (
-                        <div key={acct} style={S.card}>
-                          <div style={S.cardTitle}>{acct}</div>
-                          {acctTrades.map((tr, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                padding: '5px 0',
-                                borderBottom: '1px solid #0f172a',
-                                fontSize: 13,
-                              }}
-                            >
-                              <span>
-                                <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>{' '}
-                                <span style={{ fontFamily: 'monospace' }}>{tr.ticker}</span>
-                              </span>
-                              <span style={{ color: '#94a3b8' }}>
-                                {fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
+                {analysisState === 'done' && trades.length > 0 && (
+                  <>
+                    <div style={S.warning}>
+                      These trades move your portfolio toward risk parity targets within
+                      tax-efficient accounts.{' '}
+                      <strong>Verify share counts and prices before executing.</strong> Consider tax
+                      impact of sells in taxable accounts.
+                    </div>
+
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Rebalancing Trades</div>
+                      <div style={S.tableWrap}>
+                        <table style={S.table}>
+                          <thead>
+                            <tr>
+                              {[
+                                'Action',
+                                'Ticker',
+                                'Account',
+                                'Shares',
+                                'Amount',
+                                'Current %',
+                                'Target %',
+                                'Drift',
+                              ].map(h => (
+                                <th key={h} style={S.th}>
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {trades.map((tr, i) => (
+                              <tr key={i}>
+                                <td style={S.td}>
+                                  <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>
+                                </td>
+                                <td
+                                  style={{
+                                    ...S.td,
+                                    fontFamily: 'monospace',
+                                    fontWeight: 600,
+                                    color: '#e2e8f0',
+                                  }}
+                                >
+                                  {tr.ticker}
+                                </td>
+                                <td style={{ ...S.td, color: '#94a3b8' }}>{tr.account}</td>
+                                <td style={S.td}>{fmt.shares(tr.shares)}</td>
+                                <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
+                                <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
+                                <td style={{ ...S.td, color: '#3b82f6' }}>
+                                  {fmt.pct(tr.targetWeight)}
+                                </td>
+                                <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Per-account summary */}
+                    <div style={S.grid2}>
+                      {ACCOUNT_TYPES.map(acct => {
+                        const acctTrades = trades.filter(t => t.account === acct);
+                        if (acctTrades.length === 0) return null;
+                        return (
+                          <div key={acct} style={S.card}>
+                            <div style={S.cardTitle}>{acct}</div>
+                            {acctTrades.map((tr, i) => (
+                              <div
+                                key={i}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  padding: '5px 0',
+                                  borderBottom: '1px solid #0f172a',
+                                  fontSize: 13,
+                                }}
+                              >
+                                <span>
+                                  <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>{' '}
+                                  <span style={{ fontFamily: 'monospace' }}>{tr.ticker}</span>
+                                </span>
+                                <span style={{ color: '#94a3b8' }}>
+                                  {fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            </ErrorBoundary>
           )}
         </main>
       </div>
