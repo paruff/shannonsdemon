@@ -1,7 +1,7 @@
 {
   "name": "shannonsdemon",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,8 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
     "@lhci/cli": "^0.14.0",
     "@playwright/test": "^1.62.1",
     "@vitejs/plugin-react": "^4.3.1",

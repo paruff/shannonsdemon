@@ -1,0 +1,1 @@
+env -u NODE_OPTIONS npx --no -- commitlint --edit "$1"
