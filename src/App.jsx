@@ -121,6 +121,7 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('');
   const [failedTicker, setFailedTicker] = useState('');
   const [retryCountdown, setRetryCountdown] = useState(0);
+  const [lastFetch, setLastFetch] = useState(null);
   const [prices, setPrices] = useState({});
   const [vols, setVols] = useState({});
   const [targetWeights, setTargetWeights] = useState({});
@@ -243,6 +244,7 @@ export default function App() {
       setTargetAllocation(allocation);
       setTrades(newTrades);
       setAnalysisState('done');
+      setLastFetch(new Date().toISOString());
       setTab('analysis');
     } catch (e) {
       setErrorMsg(e.message ?? String(e));
@@ -713,6 +715,13 @@ export default function App() {
           {analysisState === 'done' && (
             <div style={{ fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 8 }}>
               ✓ Analysis complete
+              {lastFetch && (
+                <div style={{ color: '#94a3b8', marginTop: 2 }}>
+                  Last prices: {new Date(lastFetch).toLocaleTimeString()} (
+                  {Math.max(0, Math.round((Date.now() - new Date(lastFetch).getTime()) / 60000))}{' '}
+                  min ago)
+                </div>
+              )}
             </div>
           )}
 
@@ -802,6 +811,17 @@ export default function App() {
           >
             ⚠ Uses Yahoo Finance unofficial API. Data is for planning only — not financial advice.
             Verify trades before executing.
+            <div style={{ marginTop: 8, fontSize: 10, color: '#94a3b8' }}>
+              v{__VERSION__} ·{' '}
+              <a
+                href={`https://github.com/paruff/shannonsdemon/commit/${__COMMIT__}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#94a3b8' }}
+              >
+                {__COMMIT_SHORT__}
+              </a>
+            </div>
           </div>
         </aside>
 
