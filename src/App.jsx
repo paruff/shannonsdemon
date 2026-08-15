@@ -1,40 +1,60 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
 const TAX_INEFFICIENCY = {
   // Bonds – interest taxed as ordinary income
-  TLT: 10, IEF: 10, BND: 10, AGG: 10, VGIT: 10, VCIT: 10, LQD: 10, TIP: 9,
+  TLT: 10,
+  IEF: 10,
+  BND: 10,
+  AGG: 10,
+  VGIT: 10,
+  VCIT: 10,
+  LQD: 10,
+  TIP: 9,
   // REITs – non-qualified dividends
-  VNQ: 9, SCHH: 9, IYR: 9,
+  VNQ: 9,
+  SCHH: 9,
+  IYR: 9,
   // Commodities – collectibles rate or K-1
-  GLD: 8, IAU: 8, DBC: 8, PDBC: 8, SLV: 8,
+  GLD: 8,
+  IAU: 8,
+  DBC: 8,
+  PDBC: 8,
+  SLV: 8,
   // International – foreign tax credit offsets some drag; keep in taxable if needed
-  EEM: 4, VEA: 4, VXUS: 4,
+  EEM: 4,
+  VEA: 4,
+  VXUS: 4,
   // Broad equity – qualified divs, LT cap gains
-  SPY: 2, VTI: 2, QQQ: 2, VOO: 2, IVV: 2, VIG: 3,
+  SPY: 2,
+  VTI: 2,
+  QQQ: 2,
+  VOO: 2,
+  IVV: 2,
+  VIG: 3,
 };
 
-const ACCOUNT_TYPES = ["Taxable", "Traditional IRA / 401k", "Roth IRA"];
+const ACCOUNT_TYPES = ['Taxable', 'Traditional IRA / 401k', 'Roth IRA'];
 
-const DEFAULT_TICKERS = ["SPY", "TLT", "GLD", "VNQ", "EEM"];
+const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
 const DEFAULT_ACCOUNTS = {
-  "Taxable": 50000,
-  "Traditional IRA / 401k": 30000,
-  "Roth IRA": 20000,
+  Taxable: 50000,
+  'Traditional IRA / 401k': 30000,
+  'Roth IRA': 20000,
 };
 
-const LOOKBACK_OPTIONS = ["3mo", "6mo", "1y", "2y"];
+const LOOKBACK_OPTIONS = ['3mo', '6mo', '1y', '2y'];
 
-const STORAGE_KEY = "shannonsdemon_v1";
+const STORAGE_KEY = 'shannonsdemon_v1';
 
 // ─── FINANCE HELPERS ──────────────────────────────────────────────────────────
 
 // Yahoo Finance v8 chart endpoint – unofficial, no API key needed, CORS-friendly via a proxy trick.
 // NOTE: This endpoint is unofficial and may break. Swap fetchQuote() if needed.
-async function fetchQuote(ticker, period = "1y") {
-  const interval = period === "3mo" ? "1d" : "1d";
+async function fetchQuote(ticker, period = '1y') {
+  const interval = period === '3mo' ? '1d' : '1d';
   const range = period;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}&events=history`;
   const resp = await fetch(url);
@@ -83,9 +103,9 @@ function taxLocationWaterfall(targetWeights, prices, accounts, totalValue) {
   });
 
   // Account priority: Roth = 1 (best), Trad = 2, Taxable = 3
-  const accountPriority = (name) => {
-    if (name.includes("Roth")) return 1;
-    if (name.includes("IRA") || name.includes("401k")) return 2;
+  const accountPriority = name => {
+    if (name.includes('Roth')) return 1;
+    if (name.includes('IRA') || name.includes('401k')) return 2;
     return 3;
   };
 
@@ -167,13 +187,13 @@ function generateTrades(currentHoldings, targetAllocation, prices, totalValue, t
 
       // Find which account to execute trade in (prefer tax-advantaged for sells to avoid cap gains)
       // Simple heuristic: trade in the account where the target says it belongs
-      let tradeAccount = Object.keys(targetAllocation).find(
-        (acc) => (targetAllocation[acc][ticker] ?? 0) > 0
-      ) ?? Object.keys(targetAllocation)[0];
+      let tradeAccount =
+        Object.keys(targetAllocation).find(acc => (targetAllocation[acc][ticker] ?? 0) > 0) ??
+        Object.keys(targetAllocation)[0];
 
       trades.push({
         ticker,
-        action: deltaVal > 0 ? "BUY" : "SELL",
+        action: deltaVal > 0 ? 'BUY' : 'SELL',
         shares: parseFloat(shares.toFixed(4)),
         dollarAmount: Math.abs(deltaVal),
         currentWeight,
@@ -210,13 +230,13 @@ function saveState(state) {
 // ─── FORMATTING HELPERS ───────────────────────────────────────────────────────
 
 const fmt = {
-  pct: (v) => `${(v * 100).toFixed(1)}%`,
-  usd: (v) =>
+  pct: v => `${(v * 100).toFixed(1)}%`,
+  usd: v =>
     v >= 1000
-      ? `$${v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+      ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
       : `$${v.toFixed(2)}`,
-  shares: (v) => v.toFixed(4),
-  vol: (v) => `${(v * 100).toFixed(1)}%`,
+  shares: v => v.toFixed(4),
+  vol: v => `${(v * 100).toFixed(1)}%`,
 };
 
 // ─── MINI BAR CHART ───────────────────────────────────────────────────────────
@@ -224,38 +244,38 @@ const fmt = {
 function WeightBar({ current, target, ticker }) {
   const maxW = Math.max(current, target, 0.001);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
-      <span style={{ width: 44, fontFamily: "monospace", color: "#94a3b8" }}>{ticker}</span>
-      <div style={{ flex: 1, position: "relative", height: 20 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+      <span style={{ width: 44, fontFamily: 'monospace', color: '#94a3b8' }}>{ticker}</span>
+      <div style={{ flex: 1, position: 'relative', height: 20 }}>
         {/* Target bar (background) */}
         <div
           style={{
-            position: "absolute",
+            position: 'absolute',
             left: 0,
             top: 4,
             height: 12,
             width: `${(target / maxW) * 100}%`,
-            background: "#1e40af22",
+            background: '#1e40af22',
             borderRadius: 2,
-            border: "1px dashed #3b82f6",
+            border: '1px dashed #3b82f6',
           }}
         />
         {/* Current bar */}
         <div
           style={{
-            position: "absolute",
+            position: 'absolute',
             left: 0,
             top: 4,
             height: 12,
             width: `${(current / maxW) * 100}%`,
-            background: current > target ? "#dc2626" : "#16a34a",
+            background: current > target ? '#dc2626' : '#16a34a',
             borderRadius: 2,
             opacity: 0.85,
           }}
         />
       </div>
-      <span style={{ width: 40, color: "#cbd5e1", textAlign: "right" }}>{fmt.pct(current)}</span>
-      <span style={{ width: 40, color: "#3b82f6", textAlign: "right" }}>{fmt.pct(target)}</span>
+      <span style={{ width: 40, color: '#cbd5e1', textAlign: 'right' }}>{fmt.pct(current)}</span>
+      <span style={{ width: 40, color: '#3b82f6', textAlign: 'right' }}>{fmt.pct(target)}</span>
     </div>
   );
 }
@@ -265,8 +285,8 @@ function WeightBar({ current, target, ticker }) {
 export default function App() {
   // ── Config state
   const [tickers, setTickers] = useState(DEFAULT_TICKERS);
-  const [tickerInput, setTickerInput] = useState(DEFAULT_TICKERS.join(", "));
-  const [lookback, setLookback] = useState("1y");
+  const [tickerInput, setTickerInput] = useState(DEFAULT_TICKERS.join(', '));
+  const [lookback, setLookback] = useState('1y');
   const [threshold, setThreshold] = useState(0.05);
 
   // ── Account balances
@@ -280,8 +300,8 @@ export default function App() {
   });
 
   // ── Analysis results
-  const [analysisState, setAnalysisState] = useState("idle"); // idle | loading | done | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const [analysisState, setAnalysisState] = useState('idle'); // idle | loading | done | error
+  const [errorMsg, setErrorMsg] = useState('');
   const [prices, setPrices] = useState({});
   const [vols, setVols] = useState({});
   const [targetWeights, setTargetWeights] = useState({});
@@ -289,13 +309,16 @@ export default function App() {
   const [trades, setTrades] = useState([]);
 
   // ── UI tabs
-  const [tab, setTab] = useState("holdings"); // holdings | analysis | trades
+  const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
 
   // ── Load persisted state
   useEffect(() => {
     const saved = loadState();
     if (!saved) return;
-    if (saved.tickers) { setTickers(saved.tickers); setTickerInput(saved.tickers.join(", ")); }
+    if (saved.tickers) {
+      setTickers(saved.tickers);
+      setTickerInput(saved.tickers.join(', '));
+    }
     if (saved.lookback) setLookback(saved.lookback);
     if (saved.threshold) setThreshold(saved.threshold);
     if (saved.accounts) setAccounts(saved.accounts);
@@ -314,7 +337,8 @@ export default function App() {
   for (const holdings of Object.values(currentHoldings)) {
     for (const [ticker, shares] of Object.entries(holdings)) {
       if (shares > 0 && prices[ticker]) {
-        currentValueByTicker[ticker] = (currentValueByTicker[ticker] ?? 0) + shares * prices[ticker];
+        currentValueByTicker[ticker] =
+          (currentValueByTicker[ticker] ?? 0) + shares * prices[ticker];
       }
     }
   }
@@ -322,10 +346,10 @@ export default function App() {
 
   // ── Run analysis
   const runAnalysis = useCallback(async () => {
-    setAnalysisState("loading");
-    setErrorMsg("");
+    setAnalysisState('loading');
+    setErrorMsg('');
     try {
-      const results = await Promise.all(tickers.map((t) => fetchQuote(t, lookback)));
+      const results = await Promise.all(tickers.map(t => fetchQuote(t, lookback)));
 
       const newPrices = {};
       const newVols = {};
@@ -336,28 +360,34 @@ export default function App() {
 
       const weights = inverseVolWeights(newVols);
       const allocation = taxLocationWaterfall(weights, newPrices, accounts, totalValue);
-      const newTrades = generateTrades(currentHoldings, allocation, newPrices, totalValue, threshold);
+      const newTrades = generateTrades(
+        currentHoldings,
+        allocation,
+        newPrices,
+        totalValue,
+        threshold
+      );
 
       setPrices(newPrices);
       setVols(newVols);
       setTargetWeights(weights);
       setTargetAllocation(allocation);
       setTrades(newTrades);
-      setAnalysisState("done");
-      setTab("analysis");
+      setAnalysisState('done');
+      setTab('analysis');
     } catch (e) {
       setErrorMsg(e.message ?? String(e));
-      setAnalysisState("error");
+      setAnalysisState('error');
     }
   }, [tickers, lookback, accounts, currentHoldings, totalValue, threshold]);
 
   // ── UI helpers
   const updateAccount = (name, val) => {
-    setAccounts((prev) => ({ ...prev, [name]: parseFloat(val) || 0 }));
+    setAccounts(prev => ({ ...prev, [name]: parseFloat(val) || 0 }));
   };
 
   const updateHolding = (acct, ticker, val) => {
-    setCurrentHoldings((prev) => ({
+    setCurrentHoldings(prev => ({
       ...prev,
       [acct]: { ...prev[acct], [ticker]: parseFloat(val) || 0 },
     }));
@@ -366,7 +396,7 @@ export default function App() {
   const applyTickerInput = () => {
     const parsed = tickerInput
       .split(/[,\s]+/)
-      .map((t) => t.trim().toUpperCase())
+      .map(t => t.trim().toUpperCase())
       .filter(Boolean);
     setTickers(parsed);
   };
@@ -375,108 +405,163 @@ export default function App() {
 
   const S = {
     app: {
-      minHeight: "100vh",
-      background: "#0a0f1e",
-      color: "#e2e8f0",
+      minHeight: '100vh',
+      background: '#0a0f1e',
+      color: '#e2e8f0',
       fontFamily: "'Inter', 'system-ui', sans-serif",
       fontSize: 14,
     },
     header: {
-      borderBottom: "1px solid #1e293b",
-      padding: "18px 28px",
-      display: "flex",
-      alignItems: "center",
+      borderBottom: '1px solid #1e293b',
+      padding: '18px 28px',
+      display: 'flex',
+      alignItems: 'center',
       gap: 14,
-      background: "#0d1424",
+      background: '#0d1424',
     },
     logo: {
       width: 32,
       height: 32,
       borderRadius: 8,
-      background: "linear-gradient(135deg, #1d4ed8, #0891b2)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      background: 'linear-gradient(135deg, #1d4ed8, #0891b2)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
       fontSize: 16,
       flexShrink: 0,
     },
-    title: { fontSize: 17, fontWeight: 600, color: "#f1f5f9", letterSpacing: "-0.01em" },
-    subtitle: { fontSize: 12, color: "#475569", marginTop: 1 },
-    body: { display: "flex", height: "calc(100vh - 62px)" },
+    title: { fontSize: 17, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.01em' },
+    subtitle: { fontSize: 12, color: '#475569', marginTop: 1 },
+    body: { display: 'flex', height: 'calc(100vh - 62px)' },
     sidebar: {
       width: 260,
-      background: "#0d1424",
-      borderRight: "1px solid #1e293b",
-      padding: "20px 16px",
-      overflowY: "auto",
+      background: '#0d1424',
+      borderRight: '1px solid #1e293b',
+      padding: '20px 16px',
+      overflowY: 'auto',
       flexShrink: 0,
     },
-    main: { flex: 1, overflowY: "auto", padding: "20px 24px" },
-    label: { fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "block" },
+    main: { flex: 1, overflowY: 'auto', padding: '20px 24px' },
+    label: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: '#64748b',
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      marginBottom: 6,
+      display: 'block',
+    },
     input: {
-      width: "100%",
-      background: "#131d2e",
-      border: "1px solid #1e293b",
+      width: '100%',
+      background: '#131d2e',
+      border: '1px solid #1e293b',
       borderRadius: 6,
-      color: "#e2e8f0",
-      padding: "7px 10px",
+      color: '#e2e8f0',
+      padding: '7px 10px',
       fontSize: 13,
-      outline: "none",
-      boxSizing: "border-box",
+      outline: 'none',
+      boxSizing: 'border-box',
     },
     section: { marginBottom: 22 },
-    sectionTitle: { fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12, paddingBottom: 6, borderBottom: "1px solid #1e293b" },
+    sectionTitle: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#94a3b8',
+      textTransform: 'uppercase',
+      letterSpacing: '0.08em',
+      marginBottom: 12,
+      paddingBottom: 6,
+      borderBottom: '1px solid #1e293b',
+    },
     btn: {
-      width: "100%",
-      padding: "10px 0",
-      background: "linear-gradient(135deg, #1d4ed8, #0891b2)",
-      color: "#fff",
-      border: "none",
+      width: '100%',
+      padding: '10px 0',
+      background: 'linear-gradient(135deg, #1d4ed8, #0891b2)',
+      color: '#fff',
+      border: 'none',
       borderRadius: 8,
       fontSize: 13,
       fontWeight: 600,
-      cursor: "pointer",
-      letterSpacing: "0.02em",
+      cursor: 'pointer',
+      letterSpacing: '0.02em',
     },
-    btnDisabled: { opacity: 0.5, cursor: "not-allowed" },
-    tabs: { display: "flex", gap: 4, marginBottom: 20, borderBottom: "1px solid #1e293b", paddingBottom: 0 },
-    tabBtn: (active) => ({
-      padding: "8px 16px",
-      background: "none",
-      border: "none",
-      borderBottom: active ? "2px solid #3b82f6" : "2px solid transparent",
-      color: active ? "#e2e8f0" : "#475569",
-      cursor: "pointer",
+    btnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+    tabs: {
+      display: 'flex',
+      gap: 4,
+      marginBottom: 20,
+      borderBottom: '1px solid #1e293b',
+      paddingBottom: 0,
+    },
+    tabBtn: active => ({
+      padding: '8px 16px',
+      background: 'none',
+      border: 'none',
+      borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
+      color: active ? '#e2e8f0' : '#475569',
+      cursor: 'pointer',
       fontSize: 13,
       fontWeight: active ? 600 : 400,
       marginBottom: -1,
     }),
     card: {
-      background: "#0d1424",
-      border: "1px solid #1e293b",
+      background: '#0d1424',
+      border: '1px solid #1e293b',
       borderRadius: 10,
-      padding: "16px 18px",
+      padding: '16px 18px',
       marginBottom: 14,
     },
-    cardTitle: { fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12 },
-    pill: (color) => ({
-      display: "inline-block",
-      padding: "2px 8px",
+    cardTitle: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: '#64748b',
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      marginBottom: 12,
+    },
+    pill: color => ({
+      display: 'inline-block',
+      padding: '2px 8px',
       borderRadius: 100,
       fontSize: 11,
       fontWeight: 600,
-      background: color === "buy" ? "#14532d" : color === "sell" ? "#4c0519" : "#1e293b",
-      color: color === "buy" ? "#86efac" : color === "sell" ? "#fca5a5" : "#94a3b8",
+      background: color === 'buy' ? '#14532d' : color === 'sell' ? '#4c0519' : '#1e293b',
+      color: color === 'buy' ? '#86efac' : color === 'sell' ? '#fca5a5' : '#94a3b8',
     }),
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 },
-    metricVal: { fontSize: 22, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.02em" },
-    metricLbl: { fontSize: 11, color: "#475569", marginTop: 2 },
-    warning: { background: "#1c1200", border: "1px solid #92400e", borderRadius: 8, padding: "10px 14px", color: "#fbbf24", fontSize: 12, marginBottom: 14 },
-    error: { background: "#1a0808", border: "1px solid #7f1d1d", borderRadius: 8, padding: "12px 16px", color: "#fca5a5", fontSize: 13, marginBottom: 14 },
-    tableWrap: { overflowX: "auto" },
-    table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-    th: { padding: "8px 12px", textAlign: "left", fontSize: 11, color: "#475569", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #1e293b" },
-    td: { padding: "10px 12px", borderBottom: "1px solid #0f172a", color: "#cbd5e1" },
+    grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    metricVal: { fontSize: 22, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' },
+    metricLbl: { fontSize: 11, color: '#475569', marginTop: 2 },
+    warning: {
+      background: '#1c1200',
+      border: '1px solid #92400e',
+      borderRadius: 8,
+      padding: '10px 14px',
+      color: '#fbbf24',
+      fontSize: 12,
+      marginBottom: 14,
+    },
+    error: {
+      background: '#1a0808',
+      border: '1px solid #7f1d1d',
+      borderRadius: 8,
+      padding: '12px 16px',
+      color: '#fca5a5',
+      fontSize: 13,
+      marginBottom: 14,
+    },
+    tableWrap: { overflowX: 'auto' },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+    th: {
+      padding: '8px 12px',
+      textAlign: 'left',
+      fontSize: 11,
+      color: '#475569',
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      borderBottom: '1px solid #1e293b',
+    },
+    td: { padding: '10px 12px', borderBottom: '1px solid #0f172a', color: '#cbd5e1' },
   };
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -490,8 +575,8 @@ export default function App() {
           <div style={S.title}>Shannon's Demon</div>
           <div style={S.subtitle}>Risk parity rebalancer · tax-efficient · retirement</div>
         </div>
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "#475569" }}>
-          Total: <span style={{ color: "#94a3b8", fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
+        <div style={{ marginLeft: 'auto', fontSize: 12, color: '#475569' }}>
+          Total: <span style={{ color: '#94a3b8', fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
         </div>
       </div>
 
@@ -503,13 +588,13 @@ export default function App() {
             <div style={S.sectionTitle}>Assets</div>
             <label style={S.label}>Tickers (comma-separated)</label>
             <textarea
-              style={{ ...S.input, height: 68, resize: "vertical", fontFamily: "monospace" }}
+              style={{ ...S.input, height: 68, resize: 'vertical', fontFamily: 'monospace' }}
               value={tickerInput}
-              onChange={(e) => setTickerInput(e.target.value)}
+              onChange={e => setTickerInput(e.target.value)}
               onBlur={applyTickerInput}
             />
-            <div style={{ fontSize: 11, color: "#475569", marginTop: 6 }}>
-              {tickers.join(" · ")}
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+              {tickers.join(' · ')}
             </div>
           </div>
 
@@ -520,33 +605,48 @@ export default function App() {
             <select
               style={{ ...S.input, marginBottom: 10 }}
               value={lookback}
-              onChange={(e) => setLookback(e.target.value)}
+              onChange={e => setLookback(e.target.value)}
             >
-              {LOOKBACK_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              {LOOKBACK_OPTIONS.map(o => (
+                <option key={o}>{o}</option>
+              ))}
             </select>
 
             <label style={S.label}>Rebalance threshold: {fmt.pct(threshold)}</label>
             <input
-              type="range" min={0.01} max={0.20} step={0.01}
+              type="range"
+              min={0.01}
+              max={0.2}
+              step={0.01}
               value={threshold}
-              onChange={(e) => setThreshold(parseFloat(e.target.value))}
-              style={{ width: "100%", accentColor: "#3b82f6" }}
+              onChange={e => setThreshold(parseFloat(e.target.value))}
+              style={{ width: '100%', accentColor: '#3b82f6' }}
             />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#475569" }}>
-              <span>1% (active)</span><span>20% (lazy)</span>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: 11,
+                color: '#475569',
+              }}
+            >
+              <span>1% (active)</span>
+              <span>20% (lazy)</span>
             </div>
           </div>
 
           {/* Account Balances */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Account Balances</div>
-            {ACCOUNT_TYPES.map((acct) => (
+            {ACCOUNT_TYPES.map(acct => (
               <div key={acct} style={{ marginBottom: 10 }}>
                 <label style={S.label}>{acct}</label>
                 <input
-                  type="number" min={0} style={S.input}
-                  value={accounts[acct] ?? ""}
-                  onChange={(e) => updateAccount(acct, e.target.value)}
+                  type="number"
+                  min={0}
+                  style={S.input}
+                  value={accounts[acct] ?? ''}
+                  onChange={e => updateAccount(acct, e.target.value)}
                 />
               </div>
             ))}
@@ -554,21 +654,32 @@ export default function App() {
 
           {/* Run button */}
           <button
-            style={{ ...S.btn, ...(analysisState === "loading" ? S.btnDisabled : {}) }}
+            style={{ ...S.btn, ...(analysisState === 'loading' ? S.btnDisabled : {}) }}
             onClick={runAnalysis}
-            disabled={analysisState === "loading"}
+            disabled={analysisState === 'loading'}
           >
-            {analysisState === "loading" ? "⏳ Fetching data…" : "▶ Run Analysis"}
+            {analysisState === 'loading' ? '⏳ Fetching data…' : '▶ Run Analysis'}
           </button>
 
-          {analysisState === "done" && (
-            <div style={{ fontSize: 11, color: "#16a34a", textAlign: "center", marginTop: 8 }}>
+          {analysisState === 'done' && (
+            <div style={{ fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 8 }}>
               ✓ Analysis complete
             </div>
           )}
 
-          <div style={{ marginTop: 20, padding: "10px 12px", background: "#0a0f1e", borderRadius: 8, fontSize: 11, color: "#334155", lineHeight: 1.6 }}>
-            ⚠ Uses Yahoo Finance unofficial API. Data is for planning only — not financial advice. Verify trades before executing.
+          <div
+            style={{
+              marginTop: 20,
+              padding: '10px 12px',
+              background: '#0a0f1e',
+              borderRadius: 8,
+              fontSize: 11,
+              color: '#334155',
+              lineHeight: 1.6,
+            }}
+          >
+            ⚠ Uses Yahoo Finance unofficial API. Data is for planning only — not financial advice.
+            Verify trades before executing.
           </div>
         </aside>
 
@@ -576,10 +687,10 @@ export default function App() {
         <main style={S.main}>
           <div style={S.tabs}>
             {[
-              { id: "holdings", label: "Current Holdings" },
-              { id: "analysis", label: "Risk Parity Targets" },
-              { id: "trades", label: `Trades${trades.length > 0 ? ` (${trades.length})` : ""}` },
-            ].map((t) => (
+              { id: 'holdings', label: 'Current Holdings' },
+              { id: 'analysis', label: 'Risk Parity Targets' },
+              { id: 'trades', label: `Trades${trades.length > 0 ? ` (${trades.length})` : ''}` },
+            ].map(t => (
               <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
                 {t.label}
               </button>
@@ -587,32 +698,42 @@ export default function App() {
           </div>
 
           {/* ── HOLDINGS TAB ── */}
-          {tab === "holdings" && (
+          {tab === 'holdings' && (
             <div>
               <div style={S.warning}>
-                Enter your <strong>current share counts</strong> per account. These are compared against risk parity targets to generate trades. Leave at 0 if you don't hold a position.
+                Enter your <strong>current share counts</strong> per account. These are compared
+                against risk parity targets to generate trades. Leave at 0 if you don't hold a
+                position.
               </div>
 
-              {ACCOUNT_TYPES.map((acct) => (
+              {ACCOUNT_TYPES.map(acct => (
                 <div key={acct} style={S.card}>
                   <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                  <div style={{ fontSize: 11, color: "#475569", marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
                     Balance: {fmt.usd(accounts[acct] ?? 0)}
                   </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-                    {tickers.map((ticker) => (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+                      gap: 10,
+                    }}
+                  >
+                    {tickers.map(ticker => (
                       <div key={ticker}>
                         <label style={S.label}>{ticker} shares</label>
                         <input
-                          type="number" min={0} step={0.0001}
+                          type="number"
+                          min={0}
+                          step={0.0001}
                           style={S.input}
-                          value={currentHoldings[acct]?.[ticker] ?? ""}
+                          value={currentHoldings[acct]?.[ticker] ?? ''}
                           placeholder="0"
-                          onChange={(e) => updateHolding(acct, ticker, e.target.value)}
+                          onChange={e => updateHolding(acct, ticker, e.target.value)}
                         />
                         {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                          <div style={{ fontSize: 11, color: "#475569", marginTop: 3 }}>
-                            ≈ {fmt.usd((currentHoldings[acct][ticker]) * prices[ticker])}
+                          <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>
+                            ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
                           </div>
                         )}
                       </div>
@@ -626,15 +747,25 @@ export default function App() {
                   <div style={S.cardTitle}>Holdings Value (from last analysis prices)</div>
                   <div style={S.grid2}>
                     {Object.entries(currentValueByTicker).map(([t, v]) => (
-                      <div key={t} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid #0f172a" }}>
-                        <span style={{ color: "#94a3b8" }}>{t}</span>
+                      <div
+                        key={t}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '4px 0',
+                          borderBottom: '1px solid #0f172a',
+                        }}
+                      >
+                        <span style={{ color: '#94a3b8' }}>{t}</span>
                         <span>{fmt.usd(v)}</span>
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 10, color: "#64748b", fontSize: 12 }}>
-                    Total tracked: <strong style={{ color: "#e2e8f0" }}>{fmt.usd(currentTotalFromPrices)}</strong>
-                    {" "}vs account total: <strong style={{ color: "#e2e8f0" }}>{fmt.usd(totalValue)}</strong>
+                  <div style={{ marginTop: 10, color: '#64748b', fontSize: 12 }}>
+                    Total tracked:{' '}
+                    <strong style={{ color: '#e2e8f0' }}>{fmt.usd(currentTotalFromPrices)}</strong>{' '}
+                    vs account total:{' '}
+                    <strong style={{ color: '#e2e8f0' }}>{fmt.usd(totalValue)}</strong>
                   </div>
                 </div>
               )}
@@ -642,33 +773,43 @@ export default function App() {
           )}
 
           {/* ── ANALYSIS TAB ── */}
-          {tab === "analysis" && (
+          {tab === 'analysis' && (
             <div>
-              {analysisState === "idle" && (
-                <div style={{ color: "#475569", textAlign: "center", marginTop: 60 }}>
-                  Enter your holdings and click <strong style={{ color: "#94a3b8" }}>Run Analysis</strong> to see risk parity targets.
+              {analysisState === 'idle' && (
+                <div style={{ color: '#475569', textAlign: 'center', marginTop: 60 }}>
+                  Enter your holdings and click{' '}
+                  <strong style={{ color: '#94a3b8' }}>Run Analysis</strong> to see risk parity
+                  targets.
                 </div>
               )}
 
-              {analysisState === "error" && (
+              {analysisState === 'error' && (
                 <div style={S.error}>
                   <strong>Error fetching market data:</strong> {errorMsg}
-                  <div style={{ marginTop: 6, color: "#f87171" }}>
-                    The Yahoo Finance unofficial API may be rate-limiting or blocking requests. Try again in a minute, or check your ticker symbols.
+                  <div style={{ marginTop: 6, color: '#f87171' }}>
+                    The Yahoo Finance unofficial API may be rate-limiting or blocking requests. Try
+                    again in a minute, or check your ticker symbols.
                   </div>
                 </div>
               )}
 
-              {analysisState === "done" && (
+              {analysisState === 'done' && (
                 <>
                   {/* Summary metrics */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 18 }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: 12,
+                      marginBottom: 18,
+                    }}
+                  >
                     {[
-                      { label: "Assets", val: tickers.length },
-                      { label: "Total Value", val: fmt.usd(totalValue) },
-                      { label: "Rebalance Band", val: fmt.pct(threshold) },
-                      { label: "Trades Needed", val: trades.length },
-                    ].map((m) => (
+                      { label: 'Assets', val: tickers.length },
+                      { label: 'Total Value', val: fmt.usd(totalValue) },
+                      { label: 'Rebalance Band', val: fmt.pct(threshold) },
+                      { label: 'Trades Needed', val: trades.length },
+                    ].map(m => (
                       <div key={m.label} style={S.card}>
                         <div style={S.metricVal}>{m.val}</div>
                         <div style={S.metricLbl}>{m.label}</div>
@@ -679,14 +820,45 @@ export default function App() {
                   {/* Weight comparison chart */}
                   <div style={S.card}>
                     <div style={S.cardTitle}>Current vs Target Weights</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginBottom: 12 }}>
-                      <span style={{ background: "#16a34a", display: "inline-block", width: 10, height: 10, borderRadius: 2, marginRight: 4 }} />under target
-                      <span style={{ background: "#dc2626", display: "inline-block", width: 10, height: 10, borderRadius: 2, margin: "0 4px 0 12px" }} />over target
-                      <span style={{ border: "1px dashed #3b82f6", display: "inline-block", width: 10, height: 10, borderRadius: 2, margin: "0 4px 0 12px" }} />target
+                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
+                      <span
+                        style={{
+                          background: '#16a34a',
+                          display: 'inline-block',
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          marginRight: 4,
+                        }}
+                      />
+                      under target
+                      <span
+                        style={{
+                          background: '#dc2626',
+                          display: 'inline-block',
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          margin: '0 4px 0 12px',
+                        }}
+                      />
+                      over target
+                      <span
+                        style={{
+                          border: '1px dashed #3b82f6',
+                          display: 'inline-block',
+                          width: 10,
+                          height: 10,
+                          borderRadius: 2,
+                          margin: '0 4px 0 12px',
+                        }}
+                      />
+                      target
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {tickers.map((t) => {
-                        const curW = totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {tickers.map(t => {
+                        const curW =
+                          totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
                         const tgtW = targetWeights[t] ?? 0;
                         return <WeightBar key={t} ticker={t} current={curW} target={tgtW} />;
                       })}
@@ -700,26 +872,51 @@ export default function App() {
                       <table style={S.table}>
                         <thead>
                           <tr>
-                            {["Ticker", "Ann. Vol", "Target Weight", "Target $", "Current $", "Drift"].map((h) => (
-                              <th key={h} style={S.th}>{h}</th>
+                            {[
+                              'Ticker',
+                              'Ann. Vol',
+                              'Target Weight',
+                              'Target $',
+                              'Current $',
+                              'Drift',
+                            ].map(h => (
+                              <th key={h} style={S.th}>
+                                {h}
+                              </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {tickers.map((t) => {
+                          {tickers.map(t => {
                             const tgtW = targetWeights[t] ?? 0;
-                            const curW = totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                            const curW =
+                              totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
                             const drift = curW - tgtW;
                             return (
                               <tr key={t}>
-                                <td style={{ ...S.td, fontWeight: 600, color: "#e2e8f0", fontFamily: "monospace" }}>{t}</td>
+                                <td
+                                  style={{
+                                    ...S.td,
+                                    fontWeight: 600,
+                                    color: '#e2e8f0',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {t}
+                                </td>
                                 <td style={S.td}>{fmt.vol(vols[t] ?? 0)}</td>
                                 <td style={S.td}>{fmt.pct(tgtW)}</td>
                                 <td style={S.td}>{fmt.usd(tgtW * totalValue)}</td>
                                 <td style={S.td}>{fmt.usd(currentValueByTicker[t] ?? 0)}</td>
-                                <td style={{ ...S.td, color: Math.abs(drift) > threshold ? "#f87171" : "#94a3b8" }}>
-                                  {drift >= 0 ? "+" : ""}{fmt.pct(drift)}
-                                  {Math.abs(drift) > threshold && " ⚠"}
+                                <td
+                                  style={{
+                                    ...S.td,
+                                    color: Math.abs(drift) > threshold ? '#f87171' : '#94a3b8',
+                                  }}
+                                >
+                                  {drift >= 0 ? '+' : ''}
+                                  {fmt.pct(drift)}
+                                  {Math.abs(drift) > threshold && ' ⚠'}
                                 </td>
                               </tr>
                             );
@@ -732,8 +929,10 @@ export default function App() {
                   {/* Tax location */}
                   <div style={S.card}>
                     <div style={S.cardTitle}>Tax-Efficient Location (Target)</div>
-                    <div style={{ fontSize: 11, color: "#475569", marginBottom: 12 }}>
-                      Tax-inefficient assets (bonds, commodities, REITs) are placed in tax-advantaged accounts first. Scores are heuristics — verify with a tax advisor.
+                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
+                      Tax-inefficient assets (bonds, commodities, REITs) are placed in
+                      tax-advantaged accounts first. Scores are heuristics — verify with a tax
+                      advisor.
                     </div>
                     <div style={S.tableWrap}>
                       <table style={S.table}>
@@ -741,23 +940,46 @@ export default function App() {
                           <tr>
                             <th style={S.th}>Ticker</th>
                             <th style={S.th}>Tax Score</th>
-                            {ACCOUNT_TYPES.map((a) => <th key={a} style={S.th}>{a}</th>)}
+                            {ACCOUNT_TYPES.map(a => (
+                              <th key={a} style={S.th}>
+                                {a}
+                              </th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
-                          {tickers.map((t) => (
+                          {tickers.map(t => (
                             <tr key={t}>
-                              <td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, color: "#e2e8f0" }}>{t}</td>
+                              <td
+                                style={{
+                                  ...S.td,
+                                  fontFamily: 'monospace',
+                                  fontWeight: 600,
+                                  color: '#e2e8f0',
+                                }}
+                              >
+                                {t}
+                              </td>
                               <td style={S.td}>
-                                <span style={S.pill((TAX_INEFFICIENCY[t] ?? 5) >= 8 ? "sell" : (TAX_INEFFICIENCY[t] ?? 5) >= 5 ? null : "buy")}>
-                                  {TAX_INEFFICIENCY[t] ?? "5 (est.)"}
+                                <span
+                                  style={S.pill(
+                                    (TAX_INEFFICIENCY[t] ?? 5) >= 8
+                                      ? 'sell'
+                                      : (TAX_INEFFICIENCY[t] ?? 5) >= 5
+                                        ? null
+                                        : 'buy'
+                                  )}
+                                >
+                                  {TAX_INEFFICIENCY[t] ?? '5 (est.)'}
                                 </span>
                               </td>
-                              {ACCOUNT_TYPES.map((a) => (
+                              {ACCOUNT_TYPES.map(a => (
                                 <td key={a} style={S.td}>
-                                  {targetAllocation[a]?.[t] > 0
-                                    ? fmt.usd(targetAllocation[a][t])
-                                    : <span style={{ color: "#1e293b" }}>—</span>}
+                                  {targetAllocation[a]?.[t] > 0 ? (
+                                    fmt.usd(targetAllocation[a][t])
+                                  ) : (
+                                    <span style={{ color: '#1e293b' }}>—</span>
+                                  )}
                                 </td>
                               ))}
                             </tr>
@@ -770,12 +992,14 @@ export default function App() {
                   {/* Prices */}
                   <div style={S.card}>
                     <div style={S.cardTitle}>Last Prices (Yahoo Finance)</div>
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                      {tickers.map((t) => (
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                      {tickers.map(t => (
                         <div key={t} style={{ minWidth: 80 }}>
-                          <div style={{ fontFamily: "monospace", fontSize: 12, color: "#64748b" }}>{t}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0" }}>
-                            {prices[t] ? `$${prices[t].toFixed(2)}` : "—"}
+                          <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>
+                            {t}
+                          </div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
+                            {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
                           </div>
                         </div>
                       ))}
@@ -787,30 +1011,35 @@ export default function App() {
           )}
 
           {/* ── TRADES TAB ── */}
-          {tab === "trades" && (
+          {tab === 'trades' && (
             <div>
-              {analysisState !== "done" && (
-                <div style={{ color: "#475569", textAlign: "center", marginTop: 60 }}>
+              {analysisState !== 'done' && (
+                <div style={{ color: '#475569', textAlign: 'center', marginTop: 60 }}>
                   Run Analysis first to generate trades.
                 </div>
               )}
 
-              {analysisState === "done" && trades.length === 0 && (
-                <div style={{ ...S.card, textAlign: "center", padding: "32px 20px" }}>
+              {analysisState === 'done' && trades.length === 0 && (
+                <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
                   <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                  <div style={{ color: "#64748b", fontSize: 14 }}>
-                    All positions are within the <strong style={{ color: "#94a3b8" }}>{fmt.pct(threshold)}</strong> rebalance band. No trades needed.
+                  <div style={{ color: '#64748b', fontSize: 14 }}>
+                    All positions are within the{' '}
+                    <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
+                    band. No trades needed.
                   </div>
-                  <div style={{ color: "#334155", fontSize: 12, marginTop: 8 }}>
-                    Shannon's Demon: Only rebalance when drift captures a meaningful volatility premium above transaction costs.
+                  <div style={{ color: '#334155', fontSize: 12, marginTop: 8 }}>
+                    Shannon's Demon: Only rebalance when drift captures a meaningful volatility
+                    premium above transaction costs.
                   </div>
                 </div>
               )}
 
-              {analysisState === "done" && trades.length > 0 && (
+              {analysisState === 'done' && trades.length > 0 && (
                 <>
                   <div style={S.warning}>
-                    These trades move your portfolio toward risk parity targets within tax-efficient accounts. <strong>Verify share counts and prices before executing.</strong> Consider tax impact of sells in taxable accounts.
+                    These trades move your portfolio toward risk parity targets within tax-efficient
+                    accounts. <strong>Verify share counts and prices before executing.</strong>{' '}
+                    Consider tax impact of sells in taxable accounts.
                   </div>
 
                   <div style={S.card}>
@@ -819,8 +1048,19 @@ export default function App() {
                       <table style={S.table}>
                         <thead>
                           <tr>
-                            {["Action", "Ticker", "Account", "Shares", "Amount", "Current %", "Target %", "Drift"].map((h) => (
-                              <th key={h} style={S.th}>{h}</th>
+                            {[
+                              'Action',
+                              'Ticker',
+                              'Account',
+                              'Shares',
+                              'Amount',
+                              'Current %',
+                              'Target %',
+                              'Drift',
+                            ].map(h => (
+                              <th key={h} style={S.th}>
+                                {h}
+                              </th>
                             ))}
                           </tr>
                         </thead>
@@ -828,19 +1068,26 @@ export default function App() {
                           {trades.map((tr, i) => (
                             <tr key={i}>
                               <td style={S.td}>
-                                <span style={S.pill(tr.action.toLowerCase())}>
-                                  {tr.action}
-                                </span>
+                                <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>
                               </td>
-                              <td style={{ ...S.td, fontFamily: "monospace", fontWeight: 600, color: "#e2e8f0" }}>{tr.ticker}</td>
-                              <td style={{ ...S.td, color: "#64748b" }}>{tr.account}</td>
+                              <td
+                                style={{
+                                  ...S.td,
+                                  fontFamily: 'monospace',
+                                  fontWeight: 600,
+                                  color: '#e2e8f0',
+                                }}
+                              >
+                                {tr.ticker}
+                              </td>
+                              <td style={{ ...S.td, color: '#64748b' }}>{tr.account}</td>
                               <td style={S.td}>{fmt.shares(tr.shares)}</td>
                               <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
                               <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
-                              <td style={{ ...S.td, color: "#3b82f6" }}>{fmt.pct(tr.targetWeight)}</td>
-                              <td style={{ ...S.td, color: "#f87171" }}>
-                                {fmt.pct(tr.drift)}
+                              <td style={{ ...S.td, color: '#3b82f6' }}>
+                                {fmt.pct(tr.targetWeight)}
                               </td>
+                              <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -850,19 +1097,30 @@ export default function App() {
 
                   {/* Per-account summary */}
                   <div style={S.grid2}>
-                    {ACCOUNT_TYPES.map((acct) => {
-                      const acctTrades = trades.filter((t) => t.account === acct);
+                    {ACCOUNT_TYPES.map(acct => {
+                      const acctTrades = trades.filter(t => t.account === acct);
                       if (acctTrades.length === 0) return null;
                       return (
                         <div key={acct} style={S.card}>
                           <div style={S.cardTitle}>{acct}</div>
                           {acctTrades.map((tr, i) => (
-                            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid #0f172a", fontSize: 13 }}>
+                            <div
+                              key={i}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                padding: '5px 0',
+                                borderBottom: '1px solid #0f172a',
+                                fontSize: 13,
+                              }}
+                            >
                               <span>
-                                <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>
-                                {" "}<span style={{ fontFamily: "monospace" }}>{tr.ticker}</span>
+                                <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>{' '}
+                                <span style={{ fontFamily: 'monospace' }}>{tr.ticker}</span>
                               </span>
-                              <span style={{ color: "#94a3b8" }}>{fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}</span>
+                              <span style={{ color: '#94a3b8' }}>
+                                {fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}
+                              </span>
                             </div>
                           ))}
                         </div>
