@@ -216,4 +216,4 @@ dist-ssr/
 *.local
 
 # Husky
-.husky/
+.husky/_
