@@ -215,5 +215,9 @@ dist/
 dist-ssr/
 *.local
 
+# Playwright
+test-results/
+playwright-report/
+
 # Husky
 .husky/_

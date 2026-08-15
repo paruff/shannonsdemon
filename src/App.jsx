@@ -234,7 +234,7 @@ export default function App() {
       flexShrink: 0,
     },
     title: { fontSize: 17, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.01em' },
-    subtitle: { fontSize: 12, color: '#475569', marginTop: 1 },
+    subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
     body: { display: 'flex', height: 'calc(100vh - 62px)' },
     sidebar: {
       width: 260,
@@ -248,7 +248,7 @@ export default function App() {
     label: {
       fontSize: 11,
       fontWeight: 600,
-      color: '#64748b',
+      color: '#94a3b8',
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       marginBottom: 6,
@@ -301,7 +301,7 @@ export default function App() {
       background: 'none',
       border: 'none',
       borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
-      color: active ? '#e2e8f0' : '#475569',
+      color: active ? '#e2e8f0' : '#94a3b8',
       cursor: 'pointer',
       fontSize: 13,
       fontWeight: active ? 600 : 400,
@@ -317,7 +317,7 @@ export default function App() {
     cardTitle: {
       fontSize: 12,
       fontWeight: 700,
-      color: '#64748b',
+      color: '#94a3b8',
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       marginBottom: 12,
@@ -333,7 +333,7 @@ export default function App() {
     }),
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
     metricVal: { fontSize: 22, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' },
-    metricLbl: { fontSize: 11, color: '#475569', marginTop: 2 },
+    metricLbl: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
     warning: {
       background: '#1c1200',
       border: '1px solid #92400e',
@@ -358,7 +358,7 @@ export default function App() {
       padding: '8px 12px',
       textAlign: 'left',
       fontSize: 11,
-      color: '#475569',
+      color: '#94a3b8',
       fontWeight: 600,
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
@@ -372,16 +372,16 @@ export default function App() {
   return (
     <div style={S.app}>
       {/* HEADER */}
-      <div style={S.header}>
+      <header style={S.header}>
         <div style={S.logo}>⚖</div>
         <div>
-          <div style={S.title}>Shannon's Demon</div>
+          <h1 style={S.title}>Shannon's Demon</h1>
           <div style={S.subtitle}>Risk parity rebalancer · tax-efficient · retirement</div>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12, color: '#475569' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8' }}>
           Total: <span style={{ color: '#94a3b8', fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
         </div>
-      </div>
+      </header>
 
       <div style={S.body}>
         {/* SIDEBAR */}
@@ -389,14 +389,17 @@ export default function App() {
           {/* Tickers */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Assets</div>
-            <label style={S.label}>Tickers (comma-separated)</label>
+            <label style={S.label} htmlFor="tickers-input">
+              Tickers (comma-separated)
+            </label>
             <textarea
+              id="tickers-input"
               style={{ ...S.input, height: 68, resize: 'vertical', fontFamily: 'monospace' }}
               value={tickerInput}
               onChange={e => setTickerInput(e.target.value)}
               onBlur={applyTickerInput}
             />
-            <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
               {tickers.join(' · ')}
             </div>
           </div>
@@ -404,8 +407,11 @@ export default function App() {
           {/* Lookback & Threshold */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Parameters</div>
-            <label style={S.label}>Volatility lookback</label>
+            <label style={S.label} htmlFor="lookback-select">
+              Volatility lookback
+            </label>
             <select
+              id="lookback-select"
               style={{ ...S.input, marginBottom: 10 }}
               value={lookback}
               onChange={e => setLookback(e.target.value)}
@@ -415,8 +421,11 @@ export default function App() {
               ))}
             </select>
 
-            <label style={S.label}>Rebalance threshold: {fmt.pct(threshold)}</label>
+            <label style={S.label} htmlFor="threshold-range">
+              Rebalance threshold: {fmt.pct(threshold)}
+            </label>
             <input
+              id="threshold-range"
               type="range"
               min={0.01}
               max={0.2}
@@ -430,7 +439,7 @@ export default function App() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 fontSize: 11,
-                color: '#475569',
+                color: '#94a3b8',
               }}
             >
               <span>1% (active)</span>
@@ -443,8 +452,11 @@ export default function App() {
             <div style={S.sectionTitle}>Account Balances</div>
             {ACCOUNT_TYPES.map(acct => (
               <div key={acct} style={{ marginBottom: 10 }}>
-                <label style={S.label}>{acct}</label>
+                <label style={S.label} htmlFor={`acct-${acct}`}>
+                  {acct}
+                </label>
                 <input
+                  id={`acct-${acct}`}
                   type="number"
                   min={0}
                   style={S.input}
@@ -477,7 +489,7 @@ export default function App() {
               background: '#0a0f1e',
               borderRadius: 8,
               fontSize: 11,
-              color: '#334155',
+              color: '#94a3b8',
               lineHeight: 1.6,
             }}
           >
@@ -512,7 +524,7 @@ export default function App() {
               {ACCOUNT_TYPES.map(acct => (
                 <div key={acct} style={S.card}>
                   <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                  <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
                     Balance: {fmt.usd(accounts[acct] ?? 0)}
                   </div>
                   <div
@@ -524,8 +536,11 @@ export default function App() {
                   >
                     {tickers.map(ticker => (
                       <div key={ticker}>
-                        <label style={S.label}>{ticker} shares</label>
+                        <label style={S.label} htmlFor={`holding-${acct}-${ticker}`}>
+                          {ticker} shares
+                        </label>
                         <input
+                          id={`holding-${acct}-${ticker}`}
                           type="number"
                           min={0}
                           step={0.0001}
@@ -535,7 +550,7 @@ export default function App() {
                           onChange={e => updateHolding(acct, ticker, e.target.value)}
                         />
                         {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                          <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
                             ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
                           </div>
                         )}
@@ -564,7 +579,7 @@ export default function App() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 10, color: '#64748b', fontSize: 12 }}>
+                  <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
                     Total tracked:{' '}
                     <strong style={{ color: '#e2e8f0' }}>{fmt.usd(currentTotalFromPrices)}</strong>{' '}
                     vs account total:{' '}
@@ -579,7 +594,7 @@ export default function App() {
           {tab === 'analysis' && (
             <div>
               {analysisState === 'idle' && (
-                <div style={{ color: '#475569', textAlign: 'center', marginTop: 60 }}>
+                <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
                   Enter your holdings and click{' '}
                   <strong style={{ color: '#94a3b8' }}>Run Analysis</strong> to see risk parity
                   targets.
@@ -623,7 +638,7 @@ export default function App() {
                   {/* Weight comparison chart */}
                   <div style={S.card}>
                     <div style={S.cardTitle}>Current vs Target Weights</div>
-                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
                       <span
                         style={{
                           background: '#16a34a',
@@ -732,7 +747,7 @@ export default function App() {
                   {/* Tax location */}
                   <div style={S.card}>
                     <div style={S.cardTitle}>Tax-Efficient Location (Target)</div>
-                    <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
                       Tax-inefficient assets (bonds, commodities, REITs) are placed in
                       tax-advantaged accounts first. Scores are heuristics — verify with a tax
                       advisor.
@@ -798,7 +813,7 @@ export default function App() {
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                       {tickers.map(t => (
                         <div key={t} style={{ minWidth: 80 }}>
-                          <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748b' }}>
+                          <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#94a3b8' }}>
                             {t}
                           </div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
@@ -817,7 +832,7 @@ export default function App() {
           {tab === 'trades' && (
             <div>
               {analysisState !== 'done' && (
-                <div style={{ color: '#475569', textAlign: 'center', marginTop: 60 }}>
+                <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
                   Run Analysis first to generate trades.
                 </div>
               )}
@@ -825,12 +840,12 @@ export default function App() {
               {analysisState === 'done' && trades.length === 0 && (
                 <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
                   <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                  <div style={{ color: '#64748b', fontSize: 14 }}>
+                  <div style={{ color: '#94a3b8', fontSize: 14 }}>
                     All positions are within the{' '}
                     <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
                     band. No trades needed.
                   </div>
-                  <div style={{ color: '#334155', fontSize: 12, marginTop: 8 }}>
+                  <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
                     Shannon's Demon: Only rebalance when drift captures a meaningful volatility
                     premium above transaction costs.
                   </div>
@@ -883,7 +898,7 @@ export default function App() {
                               >
                                 {tr.ticker}
                               </td>
-                              <td style={{ ...S.td, color: '#64748b' }}>{tr.account}</td>
+                              <td style={{ ...S.td, color: '#94a3b8' }}>{tr.account}</td>
                               <td style={S.td}>{fmt.shares(tr.shares)}</td>
                               <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
                               <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
