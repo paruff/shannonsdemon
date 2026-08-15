@@ -75,6 +75,7 @@ function WeightBar({ current, target, ticker }) {
             background: '#1e40af22',
             borderRadius: 2,
             border: '1px dashed #3b82f6',
+            transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         />
         {/* Current bar */}
@@ -88,11 +89,43 @@ function WeightBar({ current, target, ticker }) {
             background: current > target ? '#dc2626' : '#16a34a',
             borderRadius: 2,
             opacity: 0.85,
+            transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         />
       </div>
       <span style={{ width: 40, color: '#cbd5e1', textAlign: 'right' }}>{fmt.pct(current)}</span>
       <span style={{ width: 40, color: '#3b82f6', textAlign: 'right' }}>{fmt.pct(target)}</span>
+    </div>
+  );
+}
+
+// ─── CONFETTI (dependency-free) ───────────────────────────────────────────────
+function Confetti() {
+  const pieces = Array.from({ length: 24 }, (_, i) => ({
+    left: `${(i * 137) % 100}%`,
+    delay: `${(i % 8) * 0.08}s`,
+    color: ['#3b82f6', '#0891b2', '#16a34a', '#f59e0b', '#f87171'][i % 5],
+  }));
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 50 }}
+    >
+      {pieces.map((p, i) => (
+        <span
+          key={i}
+          className="sd-confetti"
+          style={{
+            position: 'absolute',
+            top: '-12px',
+            left: p.left,
+            width: 8,
+            height: 12,
+            background: p.color,
+            borderRadius: 2,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -522,6 +555,9 @@ export default function App() {
     <div style={S.app}>
       <style>{`
         .sd-table th:first-child, .sd-table td:first-child { position: sticky; left: 0; background: #0d1424; z-index: 1; }
+        .sd-input:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        @keyframes sd-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+        .sd-confetti { animation: sd-fall 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @media (max-width: 767px) {
           .sd-sidebar { position: fixed; top: 62px; bottom: 0; left: 0; z-index: 40; width: 260px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 0 0 20px rgba(0,0,0,.4); }
           .sd-sidebar.open { transform: translateX(0); }
@@ -575,6 +611,7 @@ export default function App() {
             </label>
             <textarea
               id="tickers-input"
+              className="sd-input"
               style={{ ...S.input, height: 68, resize: 'vertical', fontFamily: 'monospace' }}
               value={tickerInput}
               onChange={e => setTickerInput(e.target.value)}
@@ -633,6 +670,7 @@ export default function App() {
                 <select
                   ref={lookbackRef}
                   id="lookback-select"
+                  className="sd-input"
                   style={{ ...S.input, marginBottom: 10 }}
                   value={lookback}
                   onChange={e => setLookback(e.target.value)}
@@ -692,6 +730,7 @@ export default function App() {
                   id={`acct-${acct}`}
                   type="number"
                   min={0}
+                  className="sd-input"
                   style={S.input}
                   value={accounts[acct] ?? ''}
                   onChange={e => updateAccount(acct, e.target.value)}
@@ -730,6 +769,7 @@ export default function App() {
             <div style={S.sectionTitle}>Scenarios</div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
               <input
+                className="sd-input"
                 style={{ ...S.input, flex: 1 }}
                 placeholder="Name…"
                 value={scenarioName}
@@ -853,6 +893,7 @@ export default function App() {
                   <div style={{ ...S.cardTitle, marginBottom: 6 }}>Bulk paste</div>
                   <textarea
                     placeholder="Paste CSV: Account, Ticker, Shares — e.g. Taxable,SPY,100"
+                    className="sd-input"
                     style={{ ...S.input, height: 52, fontFamily: 'monospace', fontSize: 11 }}
                     onPaste={handlePaste}
                   />
@@ -881,6 +922,7 @@ export default function App() {
                             type="number"
                             min={0}
                             step={0.0001}
+                            className="sd-input"
                             style={S.input}
                             value={currentHoldings[acct]?.[ticker] ?? ''}
                             placeholder="0"
@@ -1252,6 +1294,7 @@ export default function App() {
                       Shannon's Demon: Only rebalance when drift captures a meaningful volatility
                       premium above transaction costs.
                     </div>
+                    <Confetti />
                   </div>
                 )}
 
