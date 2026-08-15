@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { annualizedVol, inverseVolWeights, taxLocationWaterfall, generateTrades } from '../finance';
+import {
+  annualizedVol,
+  inverseVolWeights,
+  taxLocationWaterfall,
+  generateTrades,
+  closestTickers,
+} from '../finance';
 
 describe('annualizedVol', () => {
   it('returns ~0.16 for 1% daily alternating returns', () => {
@@ -45,5 +51,14 @@ describe('generateTrades', () => {
     const prices = { SPY: 500 };
     const trades = generateTrades(current, target, prices, 100000, 0.05);
     expect(trades.length).toBe(0);
+  });
+});
+
+describe('closestTickers', () => {
+  it('suggests exact match first', () => {
+    expect(closestTickers('SPY')[0]).toBe('SPY');
+  });
+  it('suggests near miss (VOO for VOOO)', () => {
+    expect(closestTickers('VOOO')).toContain('VOO');
   });
 });

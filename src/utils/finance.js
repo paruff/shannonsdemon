@@ -35,6 +35,57 @@ const TAX_INEFFICIENCY = {
 
 const ACCOUNT_TYPES = ['Taxable', 'Traditional IRA / 401k', 'Roth IRA'];
 const LOOKBACK_OPTIONS = ['3mo', '6mo', '1y', '2y'];
+
+// Common liquid ETFs for "did you mean" suggestions on bad tickers.
+const COMMON_ETFS = [
+  'SPY',
+  'VOO',
+  'IVV',
+  'VTI',
+  'QQQ',
+  'IWM',
+  'EEM',
+  'AGG',
+  'TLT',
+  'BND',
+  'GLD',
+  'SLV',
+  'VNQ',
+  'VEA',
+  'VWO',
+  'DIA',
+  'IEFA',
+  'IJR',
+  'XLK',
+  'XLE',
+];
+
+function levenshtein(a, b) {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => Array(n + 1));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+// Closest candidate symbols to a (possibly mistyped) ticker.
+function closestTickers(ticker, candidates = COMMON_ETFS, limit = 3) {
+  return candidates
+    .map(c => ({ c, d: levenshtein(ticker.toUpperCase(), c) }))
+    .sort((x, y) => x.d - y.d || x.c.localeCompare(y.c))
+    .slice(0, limit)
+    .map(x => x.c);
+}
 // ─── FINANCE HELPERS ──────────────────────────────────────────────────────────
 
 // Yahoo Finance v8 chart endpoint – unofficial, no API key needed, CORS-friendly via a proxy trick.
@@ -213,5 +264,6 @@ export {
   inverseVolWeights,
   taxLocationWaterfall,
   generateTrades,
+  closestTickers,
   fmt,
 };

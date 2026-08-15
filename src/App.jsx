@@ -21,6 +21,7 @@ import {
   inverseVolWeights,
   taxLocationWaterfall,
   generateTrades,
+  closestTickers,
   fmt,
 } from './utils/finance';
 
@@ -118,6 +119,8 @@ export default function App() {
   // ── Analysis results
   const [analysisState, setAnalysisState] = useState('idle'); // idle | loading | done | error
   const [errorMsg, setErrorMsg] = useState('');
+  const [failedTicker, setFailedTicker] = useState('');
+  const [retryCountdown, setRetryCountdown] = useState(0);
   const [prices, setPrices] = useState({});
   const [vols, setVols] = useState({});
   const [targetWeights, setTargetWeights] = useState({});
@@ -179,6 +182,13 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [tickers, lookback]);
 
+  // ── Retry countdown
+  useEffect(() => {
+    if (retryCountdown <= 0) return;
+    const t = setInterval(() => setRetryCountdown(c => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [retryCountdown]);
+
   // ── Trade preview without re-running analysis
   const estimatedTrades = useMemo(
     () => generateTrades(currentHoldings, targetAllocation, prices, totalValue, threshold),
@@ -202,7 +212,13 @@ export default function App() {
     setAnalysisState('loading');
     setErrorMsg('');
     try {
-      const results = await Promise.all(tickers.map(t => fetchQuote(t, lookback)));
+      const settled = await Promise.allSettled(tickers.map(t => fetchQuote(t, lookback)));
+      const bad = tickers.filter((_, i) => settled[i].status === 'rejected');
+      if (bad.length > 0) {
+        setFailedTicker(bad[0]);
+        throw new Error(`Could not fetch data for ${bad.join(', ')}`);
+      }
+      const results = settled.map(s => s.value);
 
       const newPrices = {};
       const newVols = {};
@@ -909,10 +925,52 @@ export default function App() {
                 {analysisState === 'error' && (
                   <div style={S.error}>
                     <strong>Error fetching market data:</strong> {errorMsg}
+                    {failedTicker && (
+                      <div style={{ marginTop: 8, color: '#94a3b8' }}>
+                        Did you mean:{' '}
+                        {closestTickers(failedTicker).map(s => (
+                          <button
+                            key={s}
+                            onClick={() => {
+                              setTickers(prev => prev.map(t => (t === failedTicker ? s : t)));
+                              setTickerInput(prev =>
+                                prev
+                                  .split(/[,\s]+/)
+                                  .map(t => (t.trim().toUpperCase() === failedTicker ? s : t))
+                                  .join(', ')
+                              );
+                            }}
+                            style={{
+                              margin: '0 4px',
+                              padding: '2px 8px',
+                              background: '#131d2e',
+                              border: '1px solid #1e293b',
+                              color: '#93c5fd',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div style={{ marginTop: 6, color: '#f87171' }}>
-                      The Yahoo Finance unofficial API may be rate-limiting or blocking requests.
-                      Try again in a minute, or check your ticker symbols.
+                      Yahoo Finance unofficial API may be rate-limiting or blocking requests.{' '}
+                      {retryCountdown > 0
+                        ? `Retry in ${retryCountdown}s…`
+                        : 'Try again in a minute, or check your ticker symbols.'}
                     </div>
+                    <button
+                      style={{ ...S.btn, marginTop: 8 }}
+                      onClick={() => {
+                        setRetryCountdown(30);
+                        runAnalysis();
+                      }}
+                    >
+                      Retry Now
+                    </button>
                   </div>
                 )}
 
