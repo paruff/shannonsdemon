@@ -117,6 +117,14 @@ export default function App() {
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
+  const [scenarioName, setScenarioName] = useState('');
+  const [scenarios, setScenarios] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('shannonsdemon_scenarios_v1') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
   // ── Load persisted state
   useEffect(() => {
@@ -277,6 +285,40 @@ export default function App() {
       trades,
     };
     navigator.clipboard.writeText(JSON.stringify(state, null, 2));
+  };
+
+  const persistScenarios = ns => {
+    setScenarios(ns);
+    localStorage.setItem('shannonsdemon_scenarios_v1', JSON.stringify(ns));
+  };
+
+  const saveScenario = name => {
+    persistScenarios([
+      ...scenarios,
+      {
+        name,
+        timestamp: Date.now(),
+        tickers,
+        lookback,
+        threshold,
+        accounts,
+        currentHoldings,
+      },
+    ]);
+    setScenarioName('');
+  };
+
+  const loadScenario = s => {
+    setTickers(s.tickers);
+    setTickerInput(s.tickers.join(', '));
+    if (s.lookback) setLookback(s.lookback);
+    if (s.threshold) setThreshold(s.threshold);
+    if (s.accounts) setAccounts(s.accounts);
+    if (s.currentHoldings) setCurrentHoldings(s.currentHoldings);
+  };
+
+  const deleteScenario = ts => {
+    persistScenarios(scenarios.filter(s => s.timestamp !== ts));
   };
 
   // ─── STYLES ───────────────────────────────────────────────────────────────
@@ -608,6 +650,79 @@ export default function App() {
               ✓ Analysis complete
             </div>
           )}
+
+          {/* Scenarios */}
+          <div style={S.section}>
+            <div style={S.sectionTitle}>Scenarios</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <input
+                style={{ ...S.input, flex: 1 }}
+                placeholder="Name…"
+                value={scenarioName}
+                onChange={e => setScenarioName(e.target.value)}
+                aria-label="Scenario name"
+              />
+              <button
+                style={{ ...S.btn, padding: '6px 10px' }}
+                onClick={() => saveScenario(scenarioName)}
+                disabled={!scenarioName.trim()}
+              >
+                Save
+              </button>
+            </div>
+            {scenarios.length === 0 && (
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                Save a snapshot of inputs to compare later.
+              </div>
+            )}
+            {scenarios.map(s => (
+              <div
+                key={s.timestamp}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: 12,
+                  padding: '4px 0',
+                  borderBottom: '1px solid #0f172a',
+                }}
+              >
+                <span style={{ color: '#cbd5e1' }}>
+                  {s.name}
+                  <span style={{ color: '#64748b', fontSize: 10 }}>
+                    {' '}
+                    · {new Date(s.timestamp).toLocaleDateString()}
+                  </span>
+                </span>
+                <span>
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#3b82f6',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                    onClick={() => loadScenario(s)}
+                  >
+                    Load
+                  </button>{' '}
+                  <button
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#f87171',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                    }}
+                    onClick={() => deleteScenario(s.timestamp)}
+                  >
+                    ✕
+                  </button>
+                </span>
+              </div>
+            ))}
+          </div>
 
           <div
             style={{
