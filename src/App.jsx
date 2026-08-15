@@ -114,6 +114,7 @@ export default function App() {
 
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // ── Load persisted state
   useEffect(() => {
@@ -135,6 +136,7 @@ export default function App() {
   }, [tickers, lookback, threshold, accounts, currentHoldings]);
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
+  const canRun = tickers.length > 0 && totalValue > 0;
 
   // ── Compute current weights from holdings
   const currentValueByTicker = {};
@@ -405,47 +407,67 @@ export default function App() {
             </div>
           </div>
 
-          {/* Lookback & Threshold */}
+          {/* Advanced (collapsible) */}
           <div style={S.section}>
-            <div style={S.sectionTitle}>Parameters</div>
-            <label style={S.label} htmlFor="lookback-select">
-              Volatility lookback
-            </label>
-            <select
-              id="lookback-select"
-              style={{ ...S.input, marginBottom: 10 }}
-              value={lookback}
-              onChange={e => setLookback(e.target.value)}
-            >
-              {LOOKBACK_OPTIONS.map(o => (
-                <option key={o}>{o}</option>
-              ))}
-            </select>
-
-            <label style={S.label} htmlFor="threshold-range">
-              Rebalance threshold: {fmt.pct(threshold)}
-            </label>
-            <input
-              id="threshold-range"
-              type="range"
-              min={0.01}
-              max={0.2}
-              step={0.01}
-              value={threshold}
-              onChange={e => setThreshold(parseFloat(e.target.value))}
-              style={{ width: '100%', accentColor: '#3b82f6' }}
-            />
-            <div
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(v => !v)}
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 11,
+                background: 'none',
+                border: 'none',
                 color: '#94a3b8',
+                cursor: 'pointer',
+                fontSize: 12,
+                padding: 0,
+                fontWeight: 600,
               }}
+              aria-expanded={showAdvanced}
             >
-              <span>1% (active)</span>
-              <span>20% (lazy)</span>
-            </div>
+              {showAdvanced ? '▼' : '▶'} Advanced
+            </button>
+            {showAdvanced && (
+              <div style={{ marginTop: 12 }}>
+                <div style={S.sectionTitle}>Parameters</div>
+                <label style={S.label} htmlFor="lookback-select">
+                  Volatility lookback
+                </label>
+                <select
+                  id="lookback-select"
+                  style={{ ...S.input, marginBottom: 10 }}
+                  value={lookback}
+                  onChange={e => setLookback(e.target.value)}
+                >
+                  {LOOKBACK_OPTIONS.map(o => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+
+                <label style={S.label} htmlFor="threshold-range">
+                  Rebalance threshold: {fmt.pct(threshold)}
+                </label>
+                <input
+                  id="threshold-range"
+                  type="range"
+                  min={0.01}
+                  max={0.2}
+                  step={0.01}
+                  value={threshold}
+                  onChange={e => setThreshold(parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: '#3b82f6' }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 11,
+                    color: '#94a3b8',
+                  }}
+                >
+                  <span>1% (active)</span>
+                  <span>20% (lazy)</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Account Balances */}
@@ -470,9 +492,12 @@ export default function App() {
 
           {/* Run button */}
           <button
-            style={{ ...S.btn, ...(analysisState === 'loading' ? S.btnDisabled : {}) }}
+            style={{
+              ...S.btn,
+              ...(analysisState === 'loading' || !canRun ? S.btnDisabled : {}),
+            }}
             onClick={runAnalysis}
-            disabled={analysisState === 'loading'}
+            disabled={analysisState === 'loading' || !canRun}
           >
             {analysisState === 'loading' ? '⏳ Fetching data…' : '▶ Run Analysis'}
           </button>
